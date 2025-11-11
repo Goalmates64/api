@@ -1,126 +1,53 @@
-import { GlobalConfig } from '@/config/config.type';
-import { Queue } from '@/constants/job.constant';
-import { CacheService } from '@/shared/cache/cache.service';
-import { CacheParam } from '@/shared/cache/cache.type';
-import { EmailQueue } from '@/worker/queues/email/email.type';
-import { InjectQueue } from '@nestjs/bullmq';
-import {
-  HttpException,
-  HttpStatus,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { UserEntity } from './entities/user.entity';
+import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
 
-/**
- * NOTE: This service is for handling auth related tasks outside of Better Auth.
- * You cannot import better auth instance from `better-auth.service.ts` here since we already use this service to create Better Auth instance and will cause a circular loop.
- */
+import { UsersService } from '../users/users.service';
+import { CreateUserDto } from '../users/dto/create-user.dto';
+import { LoginDto } from './dto/login.dto';
+import { User } from '../users/user.entity';
+
 @Injectable()
 export class AuthService {
   constructor(
-    private configService: ConfigService<GlobalConfig>,
-    @InjectQueue(Queue.Email)
-    private readonly emailQueue: EmailQueue,
-    private readonly cacheService: CacheService,
-    @InjectRepository(UserEntity)
-    private readonly userRepository: Repository<UserEntity>,
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
   ) {}
 
-  async sendSigninMagicLink({ email, url }: { email: string; url: string }) {
-    const user = await this.userRepository.findOne({
-      where: {
-        email,
-      },
-      select: {
-        id: true,
-      },
-    });
+  async register(dto: CreateUserDto) {
+    const existing = await this.usersService.findByEmail(dto.email);
+    if (existing) {
+      throw new ConflictException('Email déjà utilisé');
+    }
+
+    const user = await this.usersService.create(dto);
+    return this.buildAuthResponse(user);
+  }
+
+  async login(dto: LoginDto) {
+    const user = await this.usersService.findByEmail(dto.email);
     if (!user) {
-      throw new NotFoundException('User not found.');
+      throw new UnauthorizedException('Identifiants invalides');
     }
 
-    // Rate limited to 1 email per 30 seconds
-    const cacheKey: CacheParam = {
-      key: 'SignInMagicLinkMailLastSentAt',
-      args: [user.id],
-    };
-    const remainingTtl = await this.cacheService.getTtl(cacheKey);
-    if (!(remainingTtl == null) && remainingTtl !== 0) {
-      throw new HttpException(
-        `Too many requests. Please wait ${Math.floor(remainingTtl / 1000)} seconds before sending again.`,
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
+    const valid = await bcrypt.compare(dto.password, user.passwordHash);
+    if (!valid) {
+      throw new UnauthorizedException('Identifiants invalides');
     }
 
-    await this.emailQueue.add('signin-magic-link', {
-      email,
-      url,
-    });
-
-    await this.cacheService.set(cacheKey, +new Date(), { ttl: 30_000 });
+    return this.buildAuthResponse(user);
   }
 
-  async verifyEmail({ url, userId }: { url: string; userId: string }) {
-    // Rate limited to 1 email per 30 seconds
-    const cacheKey: CacheParam = {
-      key: 'EmailVerificationMailLastSentAt',
-      args: [userId],
-    };
-    const remainingTtl = await this.cacheService.getTtl(cacheKey);
-    if (!(remainingTtl == null) && remainingTtl !== 0) {
-      throw new HttpException(
-        `Too many requests. Please wait ${Math.floor(remainingTtl / 1000)} seconds before sending again.`,
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-
-    await this.emailQueue.add('email-verification', {
-      url,
-      userId,
-    });
-
-    await this.cacheService.set(cacheKey, +new Date(), { ttl: 30_000 });
-  }
-
-  async resetPassword({ url, userId }: { url: string; userId: string }) {
-    // Rate limited to 1 email per 30 seconds
-    const cacheKey: CacheParam = {
-      key: 'ResetPasswordMailLastSentAt',
-      args: [userId],
-    };
-    const remainingTtl = await this.cacheService.getTtl(cacheKey);
-    if (!(remainingTtl == null) && remainingTtl !== 0) {
-      throw new HttpException(
-        `Too many requests. Please wait ${Math.floor(remainingTtl / 1000)} seconds before sending again.`,
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-    await this.emailQueue.add('reset-password', {
-      url,
-      userId,
-    });
-    await this.cacheService.set(cacheKey, +new Date(), { ttl: 30_000 });
-  }
-
-  /**
-   * Creates a basic auth username:password header that you can pass for API that is protected behind `basicAuthMiddleware`
-   */
-  createBasicAuthHeaders() {
-    const username = this.configService.getOrThrow('auth.basicAuth.username', {
-      infer: true,
-    });
-    const password = this.configService.getOrThrow('auth.basicAuth.password', {
-      infer: true,
-    });
-    const base64Credential = Buffer.from(`${username}:${password}`).toString(
-      'base64',
-    );
+  private buildAuthResponse(user: User) {
+    const payload = { sub: user.id, email: user.email };
+    const access_token = this.jwtService.sign(payload);
     return {
-      Authorization: `Basic ${base64Credential}`,
+      access_token,
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+      },
     };
   }
 }

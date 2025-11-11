@@ -1,200 +1,98 @@
-# Ultimate Nest.js Boilerplate ⚡
+<p align="center">
+  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
+</p>
 
-Advanced Nest.js boilerplate for scalable startups.
+[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
+[circleci-url]: https://circleci.com/gh/nestjs/nest
 
-## Features📦
+  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
+    <p align="center">
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
+<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
+<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
+<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
+<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
+  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
+    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
+  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
+</p>
+  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
+  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
-- [x] Nest.js with Fastify
-- [x] PostgreSQL with TypeORM
-- [x] [Better Auth](https://www.better-auth.com/) for complete authentication. Handles authentication kinds like email/password, OAuth, Magic Link, Pass Keys, Two-Factor Authentication, Session Management, etc. [Learn More](#better-auth)
-- [x] REST, GraphQL & WebSocket API
-- [x] Websocket using Socket.io via Redis Adapter(For future scalability with clusters)
-- [x] Swagger Documentation and API versioning for REST API
-- [x] Automatic API generation on the frontend using OpenAPI Codegen [Learn More](#automatic-api-generation-on-the-frontend-)
-- [x] BullMQ for Queues. Bull board UI to inspect your jobs
-- [x] Worker server for processing background tasks like queues
-- [x] [React Email](https://react.email/) for email template management. [MailPit](https://github.com/axllent/mailpit) SMTP server for local email testing. [Learn More](#email-management-)
-- [x] Caching using Redis
-- [x] Pino for Logging
-- [x] Rate Limiter using Redis
-- [x] Graceful Shutdown
-- [x] Server & Database monitoring with Prometheus & Grafana [Learn More](#server--database-monitoring-)
-- [x] Offset and Cursor based Pagination
-- [x] Local or Remote File Uploads (AWS S3)
-- [x] Sentry
-- [x] Testing with Jest
-- [x] Internationalization using i18n
-- [x] pnpm
-- [x] Docker: Dev & Prod ready from a single script [Learn More](#docker-)
-- [x] Github Actions
-- [x] Commitlint & Husky
-- [x] SWC instead of Webpack
-- [x] Dependency Graph Visualizer [Learn More](#dependency-graph-)
-- [x] Database Entity Relationship Diagram Generator [Learn More](#database-entity-relationship-diagram️)
+## Description
 
-## Development:
+[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
-- Make `.env` files ready:
+## Project setup
 
-```
-cp ./.env.example ./.env
-cp ./.env.docker.example ./.env.docker
+```bash
+$ pnpm install
 ```
 
-- Start Docker containers:
+## Compile and run the project
 
-```
-pnpm docker:dev:up
-```
+```bash
+# development
+$ pnpm run start
 
-- Run migrations:
+# watch mode
+$ pnpm run start:dev
 
-```
-docker exec -it nestjs-boilerplate-server sh
-pnpm migration:up
-```
-
-### Better Auth🔒
-
-Rolling our own auth is doable but maintaining all kinds of authentication types ourselves has been found out to be a challenging task. Moreover, rolling our own auth poses security risks. That's why this boilerplate uses [Better Auth](https://www.better-auth.com/) for everything related to authentication. All of the industry standard authentication kinds are ready to be used out of the box so that you focus on building features rather than worrying about auth shenanigans:
-
-- Email/Password
-- OAuth
-- Magic Link
-- Pass Keys
-- Two Factor Authentication
-- Role based Authentication & Authorization
-- Session Management
-
-You can find the frontend client setup [here](https://github.com/niraj-khatiwada/ultimate-nestjs-client). You can find your auth API documentation by visiting `/api/auth/reference`
-<img src="./github-assets/better-auth-client.png" />
-<img src="./github-assets/better-auth.png" />
-
-### Automatic API Generation on the Frontend 🚀
-
-You can automatically generate and use all of your backend API in frontend in just one command, thanks to Swagger and OpenAPI spec. Running `pnpm codegen` on the frontend (example [repo](https://github.com/niraj-khatiwada/ultimate-nestjs-client)) will automatically generate all API's bootstrapped with [Tanstack Query](https://tanstack.com/query/latest) ready to be used with just one import. See complete example [here](https://github.com/niraj-khatiwada/ultimate-nestjs-client)
-<img src="./github-assets/openapi-codegen.png" />
-
-### Server & Database Monitoring 🚨
-
-Prometheus & Grafana are available with Docker setup only. You might only need to monitor your server or database when the user base grows or when you want to debug some specific issues. That's why this step is completely optional. If you want to monitor your server or database, just enable `monitoring` profile in your `.env` i.e. `COMPOSE_PROFILES=monitoring`.
-
-Server Monitoring Dashboard:
-![alt text](./github-assets/server-monitoring.png)
-
-Database Monitoring Dashboard:
-![alt text](./github-assets/database-monitoring.png)
-
-### Docker 🐬
-
-##### For local development:
-
-- Start container:
-
-```
-pnpm docker:dev:up
+# production mode
+$ pnpm run start:prod
 ```
 
-- Stop container:
+## Run tests
 
-```
-pnpm docker:dev:down
-```
+```bash
+# unit tests
+$ pnpm run test
 
-##### For prod build:
+# e2e tests
+$ pnpm run test:e2e
 
-- Start container:
-
-```
-pnpm docker:prod:up
-```
-
-- Stop container:
-
-```
-pnpm docker:prod:down
+# test coverage
+$ pnpm run test:cov
 ```
 
-##### Deployment:
+## Deployment
 
-```
-sh ./bin/deploy.sh
-```
+When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
 
-or run workflow `.github/workflows/main.yml` via GitHub Actions.
+If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
 
-### Email Management 📬
-
-#### React Email
-
-Let's face it, it is not practical to just create some random html email templates and inject your variables and send it to your clients. Your email templates must be checked for spam, CSS compatibility for different email clients, accessibility, responsiveness, etc. You need to make sure all these checks are passed so that your emails don't end up in spam folder. [React Email](https://react.email/) is perfect fit for this. It uses React and provides many responsive email component blocks so that you can test all of the things mentioned earlier in your local development.
-
-<b>NOTE</b>: We use React Email only in local development. We don't ship React and it's packages in production at all(<i>you can see that all of the React packages are dev only</i>). After our email templates have been created, we convert the `.tsx` files into static html files at build time and NodeMailer uses that html file from our backend. All of these things are handled automatically, you don't have to do any extra setup.
-
-- React Email dev server: See all of your email templates in Web UI.
-
-```
-pnpm email:dev
+```bash
+$ pnpm install -g @nestjs/mau
+$ mau deploy
 ```
 
-- Build email templates(Handled): Convert `.tsx` templates file into html(`.hbs`). This is already handled in post build (`build` script).
+With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
 
-```
-pnpm email: build
-```
+## Resources
 
-- Watch Email(Handled): Watch your `.tsx` email files inside `templates/` folder and convert them to html(`.hbs`). This is already handled when you run your Nest.js server (in `start:dev` script).
+Check out a few resources that may come in handy when working with NestJS:
 
-```
-pnpm email:watch
-```
+- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
+- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
+- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
+- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
+- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
+- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
+- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
+- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
 
-<img src="./github-assets/react-email.png" />
+## Support
 
-### MailPit SMTP Server
+Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
 
-In local you can easily test your email by using [MailPit](https://github.com/axllent/mailpit) email client that ships with it's own SMTP server. The SMTP server will automatically run when you run your docker in development mode:
+## Stay in touch
 
-```
-pnpm docker:dev:up
-```
+- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
+- Website - [https://nestjs.com](https://nestjs.com/)
+- Twitter - [@nestframework](https://twitter.com/nestframework)
 
-After that, just visit `http://localhost:<DOCKER_MAIL_CLIENT_PORT>`. You can find `DOCKER_MAIL_CLIENT_PORT` on `.env.docker`. By default, it will run on `http://localhost:18025`
+## License
 
-<img src="./github-assets/mailpit.png" />
-
-### Dependency Graph 📈
-
-Visualize all of your project modules and their dependencies. Also, detect circular dependencies.
-
-NOTE: Make sure [Graphviz](https://www.graphviz.org/) is installed first.
-
-- All dependencies:
-
-```
-pnpm graph:app
-```
-
-- Only circular dependencies:
-
-```
-pnpm graph:circular
-```
-
-<figure>
-<img src="./github-assets/graph.png" />
-</figure>
-
-### Database Entity Relationship Diagram🛢️
-
-Visualize your database entities and their relationships.
-
-```
-pnpm erd:generate
-```
-
-<figure>
-<img src="./github-assets/erd.png"  />
-</figure>
-
-This boilerplate is extended from [nestjs-boilerplate](https://github.com/vndevteam/nestjs-boilerplate?tab=readme-ov-file)
+Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
