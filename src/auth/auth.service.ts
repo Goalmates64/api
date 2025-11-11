@@ -17,7 +17,7 @@ export class AuthService {
   async register(dto: CreateUserDto) {
     const existing = await this.usersService.findByEmail(dto.email);
     if (existing) {
-      throw new ConflictException('Email déjà utilisé');
+      throw new ConflictException('Email deja utilise');
     }
 
     const user = await this.usersService.create(dto);
@@ -36,6 +36,19 @@ export class AuthService {
     }
 
     return this.buildAuthResponse(user);
+  }
+
+  async getProfile(userId: number) {
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('Utilisateur introuvable');
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+    };
   }
 
   private buildAuthResponse(user: User) {
