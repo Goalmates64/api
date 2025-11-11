@@ -1,0 +1,25 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type UserSchema {
+  id: ID!
+  email: String!
+  username: String!
+  bio: String
+  self: UserSchema!
+}
+
+type Query {
+  whoami: UserSchema!
+  getUsers: [UserSchema!]!
+  getUser(id: ID!): UserSchema!
+}
+
+type Mutation {
+  deleteUser(input: DeleteUserInput!): UserSchema!
+}
+
+input DeleteUserInput {
+  id: String!
+}

@@ -1,0 +1,23 @@
+name: prod-deployment
+on:
+  # push:
+  #   branches: [main]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v2
+      - name: Production Deployment
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.PRODUCTION_EC2_HOST }}
+          USERNAME: ${{ secrets.PRODUCTION_EC2_USERNAME }}
+          PORT: ${{ secrets.PRODUCTION_EC2_PORT }}
+          KEY: ${{ secrets.PRODUCTION_EC2_PRIVATESSHKEY }}
+          command_timeout: 20m
+          script_stop: true
+          script: |
+            cd ~/nestjs-boilerplate
+            ./bin/deploy.sh
