@@ -1,11 +1,12 @@
 import {
-  Controller,
-  Post,
   Body,
+  Controller,
   Get,
-  UseGuards,
+  Logger,
+  Post,
   Req,
   UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
@@ -14,16 +15,24 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  register(@Body() dto: CreateUserDto) {
-    return this.authService.register(dto);
+  async register(@Body() dto: CreateUserDto) {
+    this.logger.log(`Attempted registration for ${dto.email}`);
+    const result = await this.authService.register(dto);
+    this.logger.log(`Created account for ${dto.email} (userId=${result.user.id})`);
+    return result;
   }
 
   @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(@Body() dto: LoginDto) {
+    this.logger.log(`Attempted login for ${dto.email}`);
+    const result = await this.authService.login(dto);
+    this.logger.log(`Successful login for ${dto.email}`);
+    return result;
   }
 
   @UseGuards(JwtAuthGuard)
@@ -33,7 +42,7 @@ export class AuthController {
     if (!userId) {
       throw new UnauthorizedException('Utilisateur non authentifie');
     }
-
+    this.logger.log(`Fetched profile for userId=${userId}`);
     return this.authService.getProfile(Number(userId));
   }
 }

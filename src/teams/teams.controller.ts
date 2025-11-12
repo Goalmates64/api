@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Logger,
   Param,
   ParseIntPipe,
   Patch,
@@ -20,20 +21,25 @@ import { AddTeamMemberDto } from './dto/add-team-member.dto';
 @UseGuards(JwtAuthGuard)
 @Controller('teams')
 export class TeamsController {
+  private readonly logger = new Logger(TeamsController.name);
+
   constructor(private readonly teamsService: TeamsService) {}
 
   @Post()
   createTeam(@CurrentUser() userId: number, @Body() dto: CreateTeamDto) {
+    this.logger.log(`User ${userId} creating team ${dto.name}`);
     return this.teamsService.createTeam(userId, dto);
   }
 
   @Post('join')
   joinTeam(@CurrentUser() userId: number, @Body() dto: JoinTeamDto) {
+    this.logger.log(`User ${userId} joining team with code ${dto.code}`);
     return this.teamsService.joinTeam(userId, dto);
   }
 
   @Get('mine')
   getMine(@CurrentUser() userId: number) {
+    this.logger.log(`Listing teams for user ${userId}`);
     return this.teamsService.getUserTeams(userId);
   }
 
@@ -42,6 +48,7 @@ export class TeamsController {
     @CurrentUser() userId: number,
     @Param('id', ParseIntPipe) id: number,
   ) {
+    this.logger.log(`User ${userId} fetching team ${id}`);
     return this.teamsService.getTeamForUser(id, userId);
   }
 
@@ -51,6 +58,7 @@ export class TeamsController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateTeamDto,
   ) {
+    this.logger.log(`User ${userId} updating team ${id}`);
     return this.teamsService.updateTeam(userId, id, dto);
   }
 
@@ -60,6 +68,7 @@ export class TeamsController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AddTeamMemberDto,
   ) {
+    this.logger.log(`User ${userId} adding ${dto.username} to team ${id}`);
     return this.teamsService.addMemberByUsername(userId, id, dto);
   }
 }

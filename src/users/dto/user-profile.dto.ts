@@ -7,4 +7,5 @@ export interface UserProfileDto {
   dateOfBirth: string | null;
   city: string | null;
   country: string | null;
+  avatarUrl: string | null;
 }

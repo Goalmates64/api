@@ -3,6 +3,7 @@
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -20,6 +21,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class TeamsService {
+  private readonly logger = new Logger(TeamsService.name);
   constructor(
     @InjectRepository(Team)
     private readonly teamRepo: Repository<Team>,
@@ -47,6 +49,7 @@ export class TeamsService {
     });
     await this.memberRepo.save(membership);
 
+    this.logger.log(`Team ${team.name} (#${team.id}) created by user ${userId}`);
     return this.loadTeamWithMembers(team.id);
   }
 
@@ -55,6 +58,7 @@ export class TeamsService {
       where: { inviteCode: dto.code },
     });
     if (!team) {
+      this.logger.warn(`User ${userId} tried invalid join code ${dto.code}`);
       throw new NotFoundException("Code d'invitation invalide.");
     }
 
@@ -72,6 +76,7 @@ export class TeamsService {
     });
     await this.memberRepo.save(membership);
 
+    this.logger.log(`User ${userId} joined team ${team.id}`);
     return this.loadTeamWithMembers(team.id);
   }
 
@@ -115,6 +120,7 @@ export class TeamsService {
     }
 
     await this.teamRepo.update(teamId, { name: newName });
+    this.logger.log(`User ${userId} renamed team ${teamId} to ${newName}`);
     return this.loadTeamWithMembers(teamId);
   }
 
@@ -165,6 +171,7 @@ export class TeamsService {
       body: `Tu viens d'être ajouté à l'équipe ${team.name}.`,
     });
 
+    this.logger.log(`User ${user.id} added to team ${teamId} by ${userId}`);
     return this.loadTeamWithMembers(teamId);
   }
 

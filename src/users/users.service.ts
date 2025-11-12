@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -6,13 +6,24 @@ import { User } from './user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserProfileDto } from './dto/user-profile.dto';
+import { BlobStorageService } from '../storage/blob-storage.service';
+
+type UploadedFile = {
+  buffer: Buffer;
+  mimetype: string;
+  size: number;
+  originalname?: string;
+};
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly repo: Repository<User>,
+    private readonly blobStorage: BlobStorageService,
   ) {}
+
+  private readonly logger = new Logger(UsersService.name);
 
   async create(dto: CreateUserDto): Promise<User> {
     const passwordHash = await bcrypt.hash(dto.password, 10);
@@ -28,7 +39,9 @@ export class UsersService {
       country: this.normalizeNullableString(dto.country),
     });
 
-    return this.repo.save(user);
+    const saved = await this.repo.save(user);
+    this.logger.log(`Created user id=${saved.id} email=${saved.email}`);
+    return saved;
   }
 
   findByEmail(email: string): Promise<User | null> {
@@ -67,6 +80,7 @@ export class UsersService {
   ): Promise<UserProfileDto> {
     const user = await this.findById(userId);
     if (!user) {
+      this.logger.error(`Attempt to update missing user ${userId}`);
       throw new NotFoundException('Utilisateur introuvable');
     }
 
@@ -91,6 +105,7 @@ export class UsersService {
     }
 
     await this.repo.save(user);
+    this.logger.log(`Updated profile for user ${userId}`);
     return this.toProfile(user);
   }
 
@@ -104,7 +119,70 @@ export class UsersService {
       dateOfBirth: user.dateOfBirth ?? null,
       city: user.city ?? null,
       country: user.country ?? null,
+      avatarUrl: user.avatarUrl ?? null,
     };
+  }
+
+  async updateAvatar(userId: number, file: UploadedFile): Promise<UserProfileDto> {
+    if (!file) {
+      throw new BadRequestException('Fichier obligatoire.');
+    }
+
+    const user = await this.findById(userId);
+    if (!user) {
+      this.logger.error(`Attempt to upload avatar for missing user ${userId}`);
+      throw new NotFoundException('Utilisateur introuvable');
+    }
+
+    this.ensureFileIsImage(file);
+
+    const extension = this.detectExtension(file);
+    const uploadResult = await this.blobStorage.uploadObject(
+      `avatars/${user.id}/avatar${extension ? `.${extension}` : ''}`,
+      file.buffer,
+      {
+        access: 'public',
+        contentType: file.mimetype,
+        addUniqueSuffix: true,
+      },
+    );
+
+    user.avatarUrl = uploadResult.downloadUrl ?? uploadResult.url ?? user.avatarUrl;
+    user.avatarPath = uploadResult.pathname;
+
+    await this.repo.save(user);
+    this.logger.log(`Updated avatar for user ${userId}`);
+    return this.toProfile(user);
+  }
+
+  private ensureFileIsImage(file: UploadedFile) {
+    const allowed = ['image/png', 'image/jpeg', 'image/webp'];
+    if (!allowed.includes(file.mimetype)) {
+      throw new BadRequestException('Format de fichier non supporté.');
+    }
+
+    const maxBytes = 2 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      throw new BadRequestException('Image trop volumineuse (max 2 Mo).');
+    }
+  }
+
+  private detectExtension(file: UploadedFile): string | null {
+    const original = file.originalname ?? '';
+    const match = original.match(/\.([a-zA-Z0-9]+)$/);
+    if (match) {
+      return match[1].toLowerCase();
+    }
+    if (file.mimetype === 'image/png') {
+      return 'png';
+    }
+    if (file.mimetype === 'image/jpeg') {
+      return 'jpg';
+    }
+    if (file.mimetype === 'image/webp') {
+      return 'webp';
+    }
+    return null;
   }
 
   private normalizeNullableString(value?: string | null): string | null {

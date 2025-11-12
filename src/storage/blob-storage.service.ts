@@ -1,39 +1,38 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Readable } from 'node:stream';
 import { randomUUID } from 'node:crypto';
+import { del, head, list, put } from '@vercel/blob';
 
-const VERCEL_BLOB_API_BASE = 'https://api.vercel.com/v2/blobs';
+type BlobAccess = 'public'; // v2 SDK supports only 'public' for access
 
-type BlobAccess = 'public' | 'private';
+export type BlobUploadBody =
+  | string
+  | Buffer
+  | Uint8Array
+  | Blob
+  | ReadableStream<any>;
 
-type FetchBodyInit = globalThis.BodyInit;
-
-export type BlobUploadBody = string | Buffer | Uint8Array | Readable | Blob;
-
-export interface BlobObject {
-  id: string;
+export interface UploadedBlob {
+  // Minimal common shape you can rely on from SDK calls
   pathname: string;
-  size: number;
-  uploadedAt: string;
-  url?: string;
-  contentType?: string;
-}
-
-interface CreateBlobResponse {
-  blob: BlobObject;
-  uploadUrl: string;
-}
-
-interface BlobLookupResponse {
-  blob: BlobObject;
-  downloadUrl?: string;
+  url: string;
+  downloadUrl: string;
+  contentType: string;
+  // Derived or looked up fields are optional
+  size?: number;
+  uploadedAt?: string; // ISO string for consistency in your app
 }
 
 export interface UploadBlobOptions {
-  access?: BlobAccess;
+  access?: BlobAccess; // only 'public' is valid in v2
   contentType?: string;
   addUniqueSuffix?: boolean;
+  allowOverwrite?: boolean;
+  cacheControlMaxAge?: number;
 }
 
 @Injectable()
@@ -42,151 +41,130 @@ export class BlobStorageService {
 
   constructor(private readonly configService: ConfigService) {}
 
+  /**
+   * Upload a blob using the official SDK.
+   * Note: The SDK prevents overwrites unless allowOverwrite=true.
+   */
   async uploadObject(
     pathname: string,
     body: BlobUploadBody,
     options?: UploadBlobOptions,
-  ): Promise<BlobObject> {
+  ): Promise<UploadedBlob> {
     const token = this.getToken();
     const normalizedPath = this.normalizePath(pathname, options);
 
-    const { uploadUrl, blob } = await this.createUploadTarget(token, normalizedPath, options);
-    await this.pushBytes(uploadUrl, body, options);
+    try {
+      const blob = await put(normalizedPath, body as any, {
+        access: options?.access ?? 'public',
+        contentType: options?.contentType,
+        addRandomSuffix: false, // we handle suffix below if requested
+        allowOverwrite: options?.allowOverwrite ?? false,
+        cacheControlMaxAge: options?.cacheControlMaxAge,
+        token,
+      });
 
-    return {
-      ...blob,
-      pathname: normalizedPath,
-      contentType: options?.contentType ?? blob.contentType,
-    };
+      // Optional enrichment: fetch size and uploadedAt with head()
+      let size: number | undefined;
+      let uploadedAtISO: string | undefined;
+      try {
+        const meta = await head(blob.url, { token });
+        size = meta.size;
+        uploadedAtISO = meta.uploadedAt.toISOString();
+      } catch (e) {
+        // head() is best-effort; keep going if it fails
+        this.logger.warn(
+          `Blob head() failed for ${blob.pathname}: ${String(e?.message ?? e)}`,
+        );
+      }
+
+      return {
+        pathname: blob.pathname,
+        url: blob.url,
+        downloadUrl: (blob as any).downloadUrl ?? blob.url, // SDK returns downloadUrl
+        contentType:
+          (blob as any).contentType ??
+          options?.contentType ??
+          'application/octet-stream',
+        size,
+        uploadedAt: uploadedAtISO,
+      };
+    } catch (err: any) {
+      const message =
+        typeof err?.message === 'string' ? err.message : String(err);
+      this.logger.error(`Blob upload failed: ${message}`);
+      throw new InternalServerErrorException(`Blob upload failed: ${message}`);
+    }
   }
 
-  async getObjectByPath(pathname: string): Promise<BlobLookupResponse | null> {
+  /**
+   * Lookup by exact pathname using list(prefix) and filtering.
+   */
+  async getObjectByPath(pathname: string): Promise<UploadedBlob | null> {
     const token = this.getToken();
     const normalizedPath = this.normalizePath(pathname);
 
-    const response = await fetch(
-      `${VERCEL_BLOB_API_BASE}/by-path?pathname=${encodeURIComponent(normalizedPath)}`,
-      {
-        headers: this.buildAuthHeaders(token),
-      },
-    );
+    try {
+      const { blobs } = await list({
+        prefix: normalizedPath,
+        limit: 100,
+        token,
+      });
+      const match = blobs.find((b) => b.pathname === normalizedPath);
+      if (!match) return null;
 
-    if (response.status === 404) {
-      return null;
-    }
-
-    if (!response.ok) {
-      const message = await response.text().catch(() => '');
-      throw new InternalServerErrorException(
-        `Blob lookup failed (${response.status}): ${message}`,
-      );
-    }
-
-    const payload = (await response.json()) as BlobLookupResponse;
-    return payload;
-  }
-
-  private async createUploadTarget(
-    token: string,
-    pathname: string,
-    options?: UploadBlobOptions,
-  ): Promise<CreateBlobResponse> {
-    const response = await fetch(VERCEL_BLOB_API_BASE, {
-      method: 'POST',
-      headers: {
-        ...this.buildAuthHeaders(token),
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        access: options?.access ?? 'private',
-        contentType: options?.contentType,
-        pathname,
-      }),
-    });
-
-    if (!response.ok) {
-      const message = await response.text().catch(() => '');
-      throw new InternalServerErrorException(
-        `Failed to create blob upload target (${response.status}): ${message}`,
-      );
-    }
-
-    const payload = (await response.json()) as CreateBlobResponse;
-
-    if (!payload.uploadUrl) {
-      throw new InternalServerErrorException('Blob upload URL missing in response.');
-    }
-
-    return payload;
-  }
-
-  private async pushBytes(
-    uploadUrl: string,
-    body: BlobUploadBody,
-    options?: UploadBlobOptions,
-  ) {
-    const headers: Record<string, string> = {};
-    if (options?.contentType) {
-      headers['Content-Type'] = options.contentType;
-    }
-
-    const response = await fetch(uploadUrl, {
-      method: 'PUT',
-      headers,
-      body: this.normalizeBody(body),
-    });
-
-    if (!response.ok) {
-      const message = await response.text().catch(() => '');
-      throw new InternalServerErrorException(
-        `Blob upload failed (${response.status}): ${message}`,
-      );
+      return {
+        pathname: match.pathname,
+        url: match.url,
+        downloadUrl: match.downloadUrl,
+        contentType: 'application/octet-stream', // list() does not include contentType; fetch with head() if needed
+        size: match.size,
+        uploadedAt: match.uploadedAt?.toISOString?.(),
+      };
+    } catch (err: any) {
+      const message =
+        typeof err?.message === 'string' ? err.message : String(err);
+      this.logger.error(`Blob lookup failed: ${message}`);
+      throw new InternalServerErrorException(`Blob lookup failed: ${message}`);
     }
   }
 
-  private normalizeBody(body: BlobUploadBody): FetchBodyInit {
-    if (typeof body === 'string') {
-      return body;
+  /**
+   * Delete a blob by pathname or URL.
+   */
+  async deleteObject(urlOrPathname: string | string[]): Promise<void> {
+    const token = this.getToken();
+    try {
+      await del(urlOrPathname as any, { token });
+    } catch (err: any) {
+      const message =
+        typeof err?.message === 'string' ? err.message : String(err);
+      this.logger.error(`Blob delete failed: ${message}`);
+      throw new InternalServerErrorException(`Blob delete failed: ${message}`);
     }
-
-    if (body instanceof Readable) {
-      return body as unknown as FetchBodyInit;
-    }
-
-    if (body instanceof Uint8Array || body instanceof Buffer) {
-      return body as unknown as FetchBodyInit;
-    }
-
-    return body as FetchBodyInit;
   }
 
-  private normalizePath(pathname: string, options?: UploadBlobOptions) {
+  // ---- helpers ----
+
+  private normalizePath(pathname: string, options?: UploadBlobOptions): string {
     const trimmed = pathname.replace(/^\/+/, '').trim();
     if (!trimmed) {
       throw new InternalServerErrorException('Blob pathname cannot be empty.');
     }
 
     if (options?.addUniqueSuffix) {
-      const extensionMatch = trimmed.match(/\.([^.]+)$/);
+      const m = trimmed.match(/\.([^.]+)$/);
       const suffix = randomUUID();
-      if (extensionMatch) {
-        const base = trimmed.slice(0, -extensionMatch[0].length);
-        return `${base}-${suffix}.${extensionMatch[1]}`;
-      }
+      if (m) return `${trimmed.slice(0, -m[0].length)}-${suffix}.${m[1]}`;
       return `${trimmed}-${suffix}`;
     }
 
     return trimmed;
   }
 
-  private buildAuthHeaders(token: string) {
-    return {
-      Authorization: `Bearer ${token}`,
-    };
-  }
-
   private getToken(): string {
-    const token = this.configService.get<string>('BLOB_READ_WRITE_TOKEN');
+    const token = this.configService
+      .get<string>('BLOB_READ_WRITE_TOKEN')
+      ?.trim();
     if (!token) {
       this.logger.error('BLOB_READ_WRITE_TOKEN is not configured.');
       throw new InternalServerErrorException(

@@ -37,6 +37,12 @@ export class User {
   @Column({ type: 'varchar', length: 120, nullable: true })
   country: string | null;
 
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  avatarUrl: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  avatarPath: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
