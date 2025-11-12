@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -17,13 +17,13 @@ type UploadedFile = {
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly repo: Repository<User>,
     private readonly blobStorage: BlobStorageService,
   ) {}
-
-  private readonly logger = new Logger(UsersService.name);
 
   async create(dto: CreateUserDto): Promise<User> {
     const passwordHash = await bcrypt.hash(dto.password, 10);
@@ -37,6 +37,7 @@ export class UsersService {
       dateOfBirth: this.normalizeNullableString(dto.dateOfBirth),
       city: this.normalizeNullableString(dto.city),
       country: this.normalizeNullableString(dto.country),
+      isChatEnabled: true,
     });
 
     const saved = await this.repo.save(user);
@@ -104,6 +105,10 @@ export class UsersService {
       user.country = this.normalizeNullableString(dto.country);
     }
 
+    if (dto.isChatEnabled !== undefined) {
+      user.isChatEnabled = dto.isChatEnabled;
+    }
+
     await this.repo.save(user);
     this.logger.log(`Updated profile for user ${userId}`);
     return this.toProfile(user);
@@ -120,10 +125,14 @@ export class UsersService {
       city: user.city ?? null,
       country: user.country ?? null,
       avatarUrl: user.avatarUrl ?? null,
+      isChatEnabled: user.isChatEnabled ?? true,
     };
   }
 
-  async updateAvatar(userId: number, file: UploadedFile): Promise<UserProfileDto> {
+  async updateAvatar(
+    userId: number,
+    file: UploadedFile,
+  ): Promise<UserProfileDto> {
     if (!file) {
       throw new BadRequestException('Fichier obligatoire.');
     }
@@ -147,7 +156,8 @@ export class UsersService {
       },
     );
 
-    user.avatarUrl = uploadResult.downloadUrl ?? uploadResult.url ?? user.avatarUrl;
+    user.avatarUrl =
+      uploadResult.downloadUrl ?? uploadResult.url ?? user.avatarUrl;
     user.avatarPath = uploadResult.pathname;
 
     await this.repo.save(user);

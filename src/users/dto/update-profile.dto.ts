@@ -1,4 +1,4 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
 import { IsPastDateString } from '../../common/validators/is-past-date.decorator';
 
 export class UpdateProfileDto {
@@ -25,4 +25,8 @@ export class UpdateProfileDto {
   @IsString()
   @MaxLength(120)
   country?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  isChatEnabled?: boolean;
 }

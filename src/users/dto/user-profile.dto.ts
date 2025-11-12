@@ -8,4 +8,5 @@ export interface UserProfileDto {
   city: string | null;
   country: string | null;
   avatarUrl: string | null;
+  isChatEnabled: boolean;
 }

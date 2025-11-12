@@ -12,13 +12,18 @@ import { MatchesModule } from './matches/matches.module';
 import { Notification } from './notifications/notification.entity';
 import { NotificationsModule } from './notifications/notifications.module';
 import { BlobStorageModule } from './storage/blob-storage.module';
+import { ChatRoom } from './chat/chat-room.entity';
+import { ChatMessage } from './chat/chat-message.entity';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath:
-        process.env.NODE_ENV === 'production' ? ['.env'] : ['.env.local', '.env'],
+        process.env.NODE_ENV === 'production'
+          ? ['.env']
+          : ['.env.local', '.env'],
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
@@ -29,7 +34,15 @@ import { BlobStorageModule } from './storage/blob-storage.module';
         username: config.get<string>('DB_USERNAME'),
         password: config.get<string>('DB_PASSWORD'),
         database: config.get<string>('DB_NAME'),
-        entities: [User, Team, TeamMember, Match, Notification],
+        entities: [
+          User,
+          Team,
+          TeamMember,
+          Match,
+          Notification,
+          ChatRoom,
+          ChatMessage,
+        ],
         synchronize: true, // DEV UNIQUEMENT
       }),
     }),
@@ -39,6 +52,7 @@ import { BlobStorageModule } from './storage/blob-storage.module';
     MatchesModule,
     NotificationsModule,
     BlobStorageModule,
+    ChatModule,
   ],
 })
 export class AppModule {}

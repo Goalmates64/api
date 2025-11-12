@@ -43,6 +43,9 @@ export class User {
   @Column({ type: 'varchar', length: 255, nullable: true })
   avatarPath: string | null;
 
+  @Column({ default: true })
+  isChatEnabled: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 
