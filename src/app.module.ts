@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+﻿import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './users/user.entity';
@@ -8,7 +8,9 @@ import { Team } from './teams/team.entity';
 import { TeamMember } from './teams/team-member.entity';
 import { TeamsModule } from './teams/teams.module';
 import { Match } from './matches/match.entity';
+import { Place } from './places/place.entity';
 import { MatchesModule } from './matches/matches.module';
+import { PlacesModule } from './places/places.module';
 import { Notification } from './notifications/notification.entity';
 import { NotificationsModule } from './notifications/notifications.module';
 import { BlobStorageModule } from './storage/blob-storage.module';
@@ -42,8 +44,10 @@ import { ChatModule } from './chat/chat.module';
           Notification,
           ChatRoom,
           ChatMessage,
+          Place,
         ],
         synchronize: true, // DEV UNIQUEMENT
+        legacySpatialSupport: false,
       }),
     }),
     UsersModule,
@@ -53,6 +57,7 @@ import { ChatModule } from './chat/chat.module';
     NotificationsModule,
     BlobStorageModule,
     ChatModule,
+    PlacesModule,
   ],
 })
 export class AppModule {}

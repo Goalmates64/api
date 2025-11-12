@@ -13,6 +13,7 @@ import { CreateMatchDto } from './dto/create-match.dto';
 import { ReportScoreDto } from './dto/report-score.dto';
 import { Team } from '../teams/team.entity';
 import { TeamMember } from '../teams/team-member.entity';
+import { Place } from '../places/place.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
@@ -24,6 +25,8 @@ export class MatchesService {
     private readonly teamRepo: Repository<Team>,
     @InjectRepository(TeamMember)
     private readonly memberRepo: Repository<TeamMember>,
+    @InjectRepository(Place)
+    private readonly placeRepo: Repository<Place>,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -50,11 +53,16 @@ export class MatchesService {
       throw new BadRequestException('Date de match invalide.');
     }
 
+    const place = await this.placeRepo.findOne({ where: { id: dto.placeId } });
+    if (!place) {
+      throw new NotFoundException('Lieu introuvable.');
+    }
+
     const match = this.matchRepo.create({
       homeTeamId: homeTeam.id,
       awayTeamId: awayTeam.id,
       scheduledAt,
-      location: dto.location,
+      placeId: place.id,
       status: MatchStatus.SCHEDULED,
     });
 
@@ -65,6 +73,7 @@ export class MatchesService {
       homeTeam,
       awayTeam,
       scheduledAt,
+      place,
     });
     return this.loadMatch(saved.id);
   }
@@ -79,6 +88,7 @@ export class MatchesService {
       .createQueryBuilder('match')
       .leftJoinAndSelect('match.homeTeam', 'homeTeam')
       .leftJoinAndSelect('match.awayTeam', 'awayTeam')
+      .leftJoinAndSelect('match.place', 'place')
       .where('match.status = :status', { status: MatchStatus.SCHEDULED })
       .andWhere('match.scheduledAt >= :now', { now: new Date() })
       .andWhere(
@@ -103,6 +113,7 @@ export class MatchesService {
       .createQueryBuilder('match')
       .leftJoinAndSelect('match.homeTeam', 'homeTeam')
       .leftJoinAndSelect('match.awayTeam', 'awayTeam')
+      .leftJoinAndSelect('match.place', 'place')
       .where(
         '(match.homeTeamId IN (:...teamIds) OR match.awayTeamId IN (:...teamIds))',
         {
@@ -168,6 +179,7 @@ export class MatchesService {
       ...match,
       homeTeam: match.homeTeam ?? { id: match.homeTeamId },
       awayTeam: match.awayTeam ?? { id: match.awayTeamId },
+      place: match.place ?? ({ id: match.placeId } as Place),
     };
   }
 
@@ -176,6 +188,7 @@ export class MatchesService {
     homeTeam: Team;
     awayTeam: Team;
     scheduledAt: Date;
+    place: Place;
   }) {
     const teamIds = [params.homeTeam.id, params.awayTeam.id];
     const members = await this.memberRepo.find({
@@ -194,7 +207,9 @@ export class MatchesService {
       timeStyle: 'short',
     }).format(params.scheduledAt);
 
-    const body = `Un match ${params.homeTeam.name} vs ${params.awayTeam.name} est prévu le ${formattedDate}.`;
+    const placeLabel = `${params.place.name} (${params.place.city})`;
+
+    const body = `Un match ${params.homeTeam.name} vs ${params.awayTeam.name} est prévu le ${formattedDate} à ${placeLabel}.`;
 
     await this.notificationsService.notifyMany(
       uniqueUserIds.map((receiverId) => ({

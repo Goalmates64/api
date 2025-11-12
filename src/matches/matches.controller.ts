@@ -25,7 +25,7 @@ export class MatchesController {
   @Post()
   create(@CurrentUser() userId: number, @Body() dto: CreateMatchDto) {
     this.logger.log(
-      `User ${userId} scheduling match ${dto.homeTeamId} vs ${dto.awayTeamId} on ${dto.scheduledAt}`,
+      `User ${userId} scheduling match ${dto.homeTeamId} vs ${dto.awayTeamId} on ${dto.scheduledAt} at place ${dto.placeId}`,
     );
     return this.matchesService.createMatch(userId, dto);
   }

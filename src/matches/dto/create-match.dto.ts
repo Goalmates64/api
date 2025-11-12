@@ -1,11 +1,4 @@
-import {
-  IsDateString,
-  IsInt,
-  IsNotEmpty,
-  IsPositive,
-  IsString,
-  MaxLength,
-} from 'class-validator';
+﻿import { IsDateString, IsInt, IsPositive } from 'class-validator';
 
 export class CreateMatchDto {
   @IsInt()
@@ -19,8 +12,5 @@ export class CreateMatchDto {
   @IsDateString()
   scheduledAt: string;
 
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(180)
-  location: string;
+  @IsInt() @IsPositive() placeId: number;
 }

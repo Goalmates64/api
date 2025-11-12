@@ -1,4 +1,4 @@
-import {
+﻿import {
   Column,
   CreateDateColumn,
   Entity,
@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { Team } from '../teams/team.entity';
 import { MatchStatus } from './match-status.enum';
+import { Place } from '../places/place.entity';
 
 @Entity()
 export class Match {
@@ -31,8 +32,12 @@ export class Match {
   @Column({ type: 'timestamp' })
   scheduledAt: Date;
 
-  @Column({ length: 180 })
-  location: string;
+  @Column()
+  placeId: number;
+
+  @ManyToOne(() => Place, { eager: true })
+  @JoinColumn({ name: 'placeId' })
+  place: Place;
 
   @Column({ type: 'enum', enum: MatchStatus, default: MatchStatus.SCHEDULED })
   status: MatchStatus;
