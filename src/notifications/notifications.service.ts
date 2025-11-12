@@ -4,6 +4,7 @@ import { In, Repository } from 'typeorm';
 
 import { Notification } from './notification.entity';
 import { User } from '../users/user.entity';
+import { NotificationsGateway } from './notifications.gateway';
 
 export interface CreateNotificationPayload {
   senderId?: number | null;
@@ -30,6 +31,7 @@ export class NotificationsService {
     private readonly notificationRepo: Repository<Notification>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    private readonly notificationsGateway: NotificationsGateway,
   ) {}
 
   async listForUser(userId: number): Promise<NotificationSummary[]> {
@@ -76,7 +78,10 @@ export class NotificationsService {
     const saved = await this.notificationRepo.save(notification);
 
     const sender = await this.loadSingleSender(saved.senderId);
-    return this.toSummary(saved, sender);
+    const summary = this.toSummary(saved, sender);
+    this.notificationsGateway.emitUpdatedNotification(userId, summary);
+    await this.emitUnreadCountsForUsers([userId]);
+    return summary;
   }
 
   async createNotification(
@@ -92,7 +97,10 @@ export class NotificationsService {
 
     const saved = await this.notificationRepo.save(notification);
     const sender = await this.loadSingleSender(saved.senderId);
-    return this.toSummary(saved, sender);
+    const summary = this.toSummary(saved, sender);
+    this.notificationsGateway.emitNewNotification(summary.receiverId, summary);
+    await this.emitUnreadCountsForUsers([summary.receiverId]);
+    return summary;
   }
 
   async notifyMany(payloads: CreateNotificationPayload[]): Promise<void> {
@@ -110,7 +118,25 @@ export class NotificationsService {
       }),
     );
 
-    await this.notificationRepo.save(notifications);
+    const saved = await this.notificationRepo.save(notifications);
+
+    const senderMap = await this.loadSenders(
+      saved.map((entry) => entry.senderId),
+    );
+
+    saved.forEach((entry) => {
+      const senderSummary =
+        entry.senderId !== null
+          ? (senderMap.get(entry.senderId) ?? null)
+          : null;
+      const summary = this.toSummary(entry, senderSummary);
+      this.notificationsGateway.emitNewNotification(
+        summary.receiverId,
+        summary,
+      );
+    });
+
+    await this.emitUnreadCountsForUsers(saved.map((entry) => entry.receiverId));
   }
 
   private async loadSingleSender(
@@ -159,5 +185,15 @@ export class NotificationsService {
       createdAt: notification.createdAt,
       sender,
     };
+  }
+
+  private async emitUnreadCountsForUsers(userIds: number[]) {
+    const uniqueIds = Array.from(new Set(userIds));
+    await Promise.all(
+      uniqueIds.map(async (receiverId) => {
+        const count = await this.unreadCount(receiverId);
+        this.notificationsGateway.emitUnreadCount(receiverId, count);
+      }),
+    );
   }
 }
