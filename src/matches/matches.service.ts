@@ -179,7 +179,9 @@ export class MatchesService {
       ...match,
       homeTeam: match.homeTeam ?? { id: match.homeTeamId },
       awayTeam: match.awayTeam ?? { id: match.awayTeamId },
-      place: match.place ?? ({ id: match.placeId } as Place),
+      place:
+        match.place ??
+        (match.placeId ? ({ id: match.placeId } as Place) : null),
     };
   }
 

@@ -32,12 +32,12 @@ export class Match {
   @Column({ type: 'timestamp' })
   scheduledAt: Date;
 
-  @Column()
-  placeId: number;
+  @Column({ nullable: true })
+  placeId: number | null;
 
-  @ManyToOne(() => Place, { eager: true })
+  @ManyToOne(() => Place, { eager: true, nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'placeId' })
-  place: Place;
+  place: Place | null;
 
   @Column({ type: 'enum', enum: MatchStatus, default: MatchStatus.SCHEDULED })
   status: MatchStatus;
