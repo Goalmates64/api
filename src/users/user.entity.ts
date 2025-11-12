@@ -2,9 +2,11 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { TeamMember } from '../teams/team-member.entity';
 
 @Entity()
 export class User {
@@ -40,4 +42,7 @@ export class User {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @OneToMany(() => TeamMember, (member) => member.user)
+  teamMemberships: TeamMember[];
 }
