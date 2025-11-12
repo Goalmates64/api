@@ -11,11 +11,14 @@ import { Match } from './matches/match.entity';
 import { MatchesModule } from './matches/matches.module';
 import { Notification } from './notifications/notification.entity';
 import { NotificationsModule } from './notifications/notifications.module';
+import { BlobStorageModule } from './storage/blob-storage.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath:
+        process.env.NODE_ENV === 'production' ? ['.env'] : ['.env.local', '.env'],
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
@@ -35,6 +38,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     TeamsModule,
     MatchesModule,
     NotificationsModule,
+    BlobStorageModule,
   ],
 })
 export class AppModule {}
