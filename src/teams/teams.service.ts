@@ -16,6 +16,7 @@ import { JoinTeamDto } from './dto/join-team.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
 import { AddTeamMemberDto } from './dto/add-team-member.dto';
 import { User } from '../users/user.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class TeamsService {
@@ -26,6 +27,7 @@ export class TeamsService {
     private readonly memberRepo: Repository<TeamMember>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async createTeam(userId: number, dto: CreateTeamDto) {
@@ -128,6 +130,11 @@ export class TeamsService {
       );
     }
 
+    const team = await this.teamRepo.findOne({ where: { id: teamId } });
+    if (!team) {
+      throw new NotFoundException('Équipe introuvable.');
+    }
+
     const username = dto.username.trim();
     if (!username) {
       throw new BadRequestException('Pseudo requis.');
@@ -150,6 +157,13 @@ export class TeamsService {
       isCaptain: false,
     });
     await this.memberRepo.save(newMember);
+
+    await this.notificationsService.createNotification({
+      senderId: userId,
+      receiverId: user.id,
+      title: 'Nouvelle équipe',
+      body: `Tu viens d'être ajouté à l'équipe ${team.name}.`,
+    });
 
     return this.loadTeamWithMembers(teamId);
   }

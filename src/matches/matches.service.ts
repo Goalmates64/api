@@ -13,6 +13,7 @@ import { CreateMatchDto } from './dto/create-match.dto';
 import { ReportScoreDto } from './dto/report-score.dto';
 import { Team } from '../teams/team.entity';
 import { TeamMember } from '../teams/team-member.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class MatchesService {
@@ -23,6 +24,7 @@ export class MatchesService {
     private readonly teamRepo: Repository<Team>,
     @InjectRepository(TeamMember)
     private readonly memberRepo: Repository<TeamMember>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async createMatch(userId: number, dto: CreateMatchDto) {
@@ -57,6 +59,13 @@ export class MatchesService {
     });
 
     const saved = await this.matchRepo.save(match);
+
+    await this.notifyPlayersAboutMatch({
+      creatorId: userId,
+      homeTeam,
+      awayTeam,
+      scheduledAt,
+    });
     return this.loadMatch(saved.id);
   }
 
@@ -160,5 +169,40 @@ export class MatchesService {
       homeTeam: match.homeTeam ?? { id: match.homeTeamId },
       awayTeam: match.awayTeam ?? { id: match.awayTeamId },
     };
+  }
+
+  private async notifyPlayersAboutMatch(params: {
+    creatorId: number;
+    homeTeam: Team;
+    awayTeam: Team;
+    scheduledAt: Date;
+  }) {
+    const teamIds = [params.homeTeam.id, params.awayTeam.id];
+    const members = await this.memberRepo.find({
+      where: { teamId: In(teamIds) },
+      select: ['userId'],
+    });
+    const uniqueUserIds = Array.from(
+      new Set(members.map((member) => member.userId)),
+    );
+    if (!uniqueUserIds.length) {
+      return;
+    }
+
+    const formattedDate = new Intl.DateTimeFormat('fr-FR', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(params.scheduledAt);
+
+    const body = `Un match ${params.homeTeam.name} vs ${params.awayTeam.name} est prévu le ${formattedDate}.`;
+
+    await this.notificationsService.notifyMany(
+      uniqueUserIds.map((receiverId) => ({
+        senderId: params.creatorId,
+        receiverId,
+        title: 'Nouveau match programmé',
+        body,
+      })),
+    );
   }
 }

@@ -6,9 +6,13 @@ import { TeamMember } from './team-member.entity';
 import { TeamsService } from './teams.service';
 import { TeamsController } from './teams.controller';
 import { User } from '../users/user.entity';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Team, TeamMember, User])],
+  imports: [
+    TypeOrmModule.forFeature([Team, TeamMember, User]),
+    NotificationsModule,
+  ],
   providers: [TeamsService],
   controllers: [TeamsController],
   exports: [TeamsService],

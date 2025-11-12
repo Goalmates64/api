@@ -9,6 +9,8 @@ import { TeamMember } from './teams/team-member.entity';
 import { TeamsModule } from './teams/teams.module';
 import { Match } from './matches/match.entity';
 import { MatchesModule } from './matches/matches.module';
+import { Notification } from './notifications/notification.entity';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -24,7 +26,7 @@ import { MatchesModule } from './matches/matches.module';
         username: config.get<string>('DB_USERNAME'),
         password: config.get<string>('DB_PASSWORD'),
         database: config.get<string>('DB_NAME'),
-        entities: [User, Team, TeamMember, Match],
+        entities: [User, Team, TeamMember, Match, Notification],
         synchronize: true, // DEV UNIQUEMENT
       }),
     }),
@@ -32,6 +34,7 @@ import { MatchesModule } from './matches/matches.module';
     AuthModule,
     TeamsModule,
     MatchesModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}
