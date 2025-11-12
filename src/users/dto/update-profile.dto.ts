@@ -1,25 +1,7 @@
-import {
-  IsEmail,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 import { IsPastDateString } from '../../common/validators/is-past-date.decorator';
 
-export class CreateUserDto {
-  @IsNotEmpty()
-  @MinLength(3)
-  username: string;
-
-  @IsEmail()
-  email: string;
-
-  @IsNotEmpty()
-  @MinLength(6)
-  password: string;
-
+export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   @MaxLength(80)

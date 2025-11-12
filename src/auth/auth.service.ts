@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 
@@ -39,16 +43,12 @@ export class AuthService {
   }
 
   async getProfile(userId: number) {
-    const user = await this.usersService.findById(userId);
-    if (!user) {
+    const profile = await this.usersService.getProfile(userId);
+    if (!profile) {
       throw new UnauthorizedException('Utilisateur introuvable');
     }
 
-    return {
-      id: user.id,
-      email: user.email,
-      username: user.username,
-    };
+    return profile;
   }
 
   private buildAuthResponse(user: User) {
@@ -56,11 +56,7 @@ export class AuthService {
     const access_token = this.jwtService.sign(payload);
     return {
       access_token,
-      user: {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-      },
+      user: this.usersService.toProfile(user),
     };
   }
 }
