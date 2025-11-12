@@ -1,4 +1,4 @@
-import {
+﻿import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
@@ -13,6 +13,9 @@ import { Team } from './team.entity';
 import { TeamMember } from './team-member.entity';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { JoinTeamDto } from './dto/join-team.dto';
+import { UpdateTeamDto } from './dto/update-team.dto';
+import { AddTeamMemberDto } from './dto/add-team-member.dto';
+import { User } from '../users/user.entity';
 
 @Injectable()
 export class TeamsService {
@@ -21,6 +24,8 @@ export class TeamsService {
     private readonly teamRepo: Repository<Team>,
     @InjectRepository(TeamMember)
     private readonly memberRepo: Repository<TeamMember>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
   ) {}
 
   async createTeam(userId: number, dto: CreateTeamDto) {
@@ -75,9 +80,7 @@ export class TeamsService {
         'team.members',
         'membership',
         'membership.teamId = team.id AND membership.userId = :userId',
-        {
-          userId,
-        },
+        { userId },
       )
       .leftJoinAndSelect('team.members', 'member')
       .leftJoinAndSelect('member.user', 'memberUser')
@@ -86,6 +89,69 @@ export class TeamsService {
       .getMany();
 
     return teams.map((team) => this.mapTeamRelations(team));
+  }
+
+  async getTeamForUser(teamId: number, userId: number) {
+    await this.ensureUserInTeam(userId, teamId);
+    return this.loadTeamWithMembers(teamId);
+  }
+
+  async updateTeam(userId: number, teamId: number, dto: UpdateTeamDto) {
+    const newName = dto.name?.trim();
+    if (!newName) {
+      return this.getTeamForUser(teamId, userId);
+    }
+
+    const membership = await this.ensureUserInTeam(userId, teamId);
+    if (!membership.isCaptain) {
+      throw new ForbiddenException('Seul le capitaine peut modifier l’équipe.');
+    }
+
+    const existing = await this.teamRepo.findOne({ where: { name: newName } });
+    if (existing && existing.id !== teamId) {
+      throw new ConflictException("Ce nom d'équipe est déjà utilisé.");
+    }
+
+    await this.teamRepo.update(teamId, { name: newName });
+    return this.loadTeamWithMembers(teamId);
+  }
+
+  async addMemberByUsername(
+    userId: number,
+    teamId: number,
+    dto: AddTeamMemberDto,
+  ) {
+    const membership = await this.ensureUserInTeam(userId, teamId);
+    if (!membership.isCaptain) {
+      throw new ForbiddenException(
+        'Seul le capitaine peut inviter de nouveaux joueurs.',
+      );
+    }
+
+    const username = dto.username.trim();
+    if (!username) {
+      throw new BadRequestException('Pseudo requis.');
+    }
+    const user = await this.userRepo.findOne({ where: { username } });
+    if (!user) {
+      throw new NotFoundException('Utilisateur introuvable.');
+    }
+
+    const alreadyMember = await this.memberRepo.findOne({
+      where: { teamId, userId: user.id },
+    });
+    if (alreadyMember) {
+      throw new ConflictException('Ce joueur fait déjà partie de l’équipe.');
+    }
+
+    const newMember = this.memberRepo.create({
+      teamId,
+      userId: user.id,
+      isCaptain: false,
+    });
+    await this.memberRepo.save(newMember);
+
+    return this.loadTeamWithMembers(teamId);
   }
 
   async ensureUserInTeam(userId: number, teamId: number) {
@@ -117,6 +183,7 @@ export class TeamsService {
   private mapTeamRelations(team: Team) {
     return {
       ...team,
+      memberCount: team.members?.length ?? 0,
       members: team.members?.map((member) => ({
         id: member.id,
         userId: member.userId,

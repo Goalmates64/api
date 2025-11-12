@@ -29,6 +29,11 @@ export class MatchesController {
     return this.matchesService.listUpcoming(userId);
   }
 
+  @Get('history')
+  listHistory(@CurrentUser() userId: number) {
+    return this.matchesService.listHistory(userId);
+  }
+
   @Post(':id/score')
   reportScore(
     @CurrentUser() userId: number,

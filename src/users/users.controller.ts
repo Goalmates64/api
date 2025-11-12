@@ -7,6 +7,7 @@ import {
   Param,
   ParseIntPipe,
   Patch,
+  Query,
   Req,
   UnauthorizedException,
   UseGuards,
@@ -36,6 +37,12 @@ export class UsersController {
   updateCurrent(@Req() req: any, @Body() dto: UpdateProfileDto) {
     const userId = this.extractUserId(req);
     return this.usersService.updateProfile(userId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('search')
+  search(@Query('query') query = '') {
+    return this.usersService.searchByUsername(query);
   }
 
   @UseGuards(JwtAuthGuard)

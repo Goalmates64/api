@@ -1,4 +1,4 @@
-import {
+﻿import {
   BadRequestException,
   ForbiddenException,
   Injectable,
@@ -43,10 +43,15 @@ export class MatchesService {
 
     await this.ensureUserInTeams(userId, [homeTeam.id, awayTeam.id]);
 
+    const scheduledAt = new Date(dto.scheduledAt);
+    if (Number.isNaN(scheduledAt.getTime())) {
+      throw new BadRequestException('Date de match invalide.');
+    }
+
     const match = this.matchRepo.create({
       homeTeamId: homeTeam.id,
       awayTeamId: awayTeam.id,
-      scheduledAt: new Date(dto.scheduledAt),
+      scheduledAt,
       location: dto.location,
       status: MatchStatus.SCHEDULED,
     });
@@ -61,7 +66,7 @@ export class MatchesService {
       return [];
     }
 
-    const qb = this.matchRepo
+    const matches = await this.matchRepo
       .createQueryBuilder('match')
       .leftJoinAndSelect('match.homeTeam', 'homeTeam')
       .leftJoinAndSelect('match.awayTeam', 'awayTeam')
@@ -73,9 +78,39 @@ export class MatchesService {
           teamIds,
         },
       )
-      .orderBy('match.scheduledAt', 'ASC');
+      .orderBy('match.scheduledAt', 'ASC')
+      .getMany();
 
-    const matches = await qb.getMany();
+    return matches.map((match) => this.attachTeams(match));
+  }
+
+  async listHistory(userId: number) {
+    const teamIds = await this.getUserTeamIds(userId);
+    if (!teamIds.length) {
+      return [];
+    }
+
+    const matches = await this.matchRepo
+      .createQueryBuilder('match')
+      .leftJoinAndSelect('match.homeTeam', 'homeTeam')
+      .leftJoinAndSelect('match.awayTeam', 'awayTeam')
+      .where(
+        '(match.homeTeamId IN (:...teamIds) OR match.awayTeamId IN (:...teamIds))',
+        {
+          teamIds,
+        },
+      )
+      .andWhere(
+        '(match.status IN (:...statuses)) OR (match.status = :scheduled AND match.scheduledAt < :now)',
+        {
+          statuses: [MatchStatus.PLAYED, MatchStatus.CANCELED],
+          scheduled: MatchStatus.SCHEDULED,
+          now: new Date(),
+        },
+      )
+      .orderBy('match.scheduledAt', 'DESC')
+      .limit(50)
+      .getMany();
 
     return matches.map((match) => this.attachTeams(match));
   }
@@ -102,7 +137,7 @@ export class MatchesService {
       where: { userId, teamId: In(teamIds) },
     });
     if (memberships === 0) {
-      throw new ForbiddenException('Tu dois appartenir à une des équipes.');
+      throw new ForbiddenException('Tu dois appartenir à l’une des équipes.');
     }
   }
 

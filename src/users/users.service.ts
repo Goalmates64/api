@@ -39,6 +39,23 @@ export class UsersService {
     return this.repo.findOne({ where: { id } });
   }
 
+  async searchByUsername(
+    query: string,
+  ): Promise<Array<Pick<User, 'id' | 'username' | 'email'>>> {
+    const trimmed = query?.trim();
+    if (!trimmed) {
+      return [];
+    }
+
+    return this.repo
+      .createQueryBuilder('user')
+      .select(['user.id', 'user.username', 'user.email'])
+      .where('user.username LIKE :query', { query: `%${trimmed}%` })
+      .orderBy('user.username', 'ASC')
+      .limit(10)
+      .getMany();
+  }
+
   async getProfile(userId: number): Promise<UserProfileDto | null> {
     const user = await this.findById(userId);
     return user ? this.toProfile(user) : null;
