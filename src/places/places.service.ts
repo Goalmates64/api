@@ -170,7 +170,7 @@ export class PlacesService {
     const conflicts = await this.findNearby(lat, lng, 1000, 5, excludeId);
     if (conflicts.length) {
       throw new ConflictException({
-        message: 'Un lieu existe d�j� � proximit� (<= 1 km).',
+        message: 'Un lieu existe déjà à proximité (<= 1 km).',
         conflicts,
       });
     }
