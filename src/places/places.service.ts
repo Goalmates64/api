@@ -1,6 +1,7 @@
-﻿import {
+import {
   ConflictException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -62,8 +63,16 @@ export class PlacesService {
       .setParameters({ insertLat: normalized.lat, insertLng: normalized.lng })
       .execute();
 
-    const insertedId =
-      insertResult.identifiers[0]?.id ?? insertResult.raw?.insertId;
+    const identifierId = this.pickNumber(insertResult.identifiers[0]?.id);
+    const rawId = this.pickNumber(
+      (insertResult.raw as Record<string, unknown> | undefined)?.insertId,
+    );
+    const insertedId = identifierId ?? rawId;
+    if (!insertedId) {
+      throw new InternalServerErrorException(
+        'Impossible de récupérer le lieu créé.',
+      );
+    }
     return this.findOne(insertedId);
   }
 
@@ -159,7 +168,7 @@ export class PlacesService {
     const usageCount = await this.matchRepo.count({ where: { placeId: id } });
     if (usageCount > 0) {
       throw new ConflictException(
-        'Impossible de supprimer ce lieu car des matchs y sont rattach�s.',
+        'Impossible de supprimer ce lieu car des matchs y sont rattachés.',
       );
     }
     await this.placeRepo.remove(place);
@@ -203,7 +212,17 @@ export class PlacesService {
       qb.andWhere('place.id != :excludeId', { excludeId });
     }
 
-    const rows = await qb.getRawMany();
+    type NearbyRow = {
+      id: number | string;
+      name: string;
+      city: string;
+      countryCode: string;
+      lat: number | string;
+      lng: number | string;
+      distance: number | string;
+    };
+
+    const rows = await qb.getRawMany<NearbyRow>();
     return rows.map((row) => ({
       id: Number(row.id),
       name: row.name,
@@ -239,5 +258,16 @@ export class PlacesService {
       .where('id = :id', { id })
       .setParameters({ updateLat: lat, updateLng: lng })
       .execute();
+  }
+
+  private pickNumber(value: unknown): number | undefined {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string' && value.trim().length > 0) {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    }
+    return undefined;
   }
 }

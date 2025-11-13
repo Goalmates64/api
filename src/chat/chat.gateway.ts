@@ -12,8 +12,13 @@ import { UsersService } from '../users/users.service';
 import { ChatMessageDto } from './dto/chat-message.dto';
 
 interface AuthenticatedSocket extends Socket {
-  data: Socket['data'] & { userId?: number };
+  data: Record<string, unknown> & { userId?: number };
 }
+
+type JwtPayload = {
+  sub?: number | string;
+  userId?: number | string;
+};
 
 @WebSocketGateway({
   namespace: 'chat',
@@ -41,14 +46,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     try {
-      const payload = this.jwtService.verify(token, {
+      const payload = this.jwtService.verify<JwtPayload>(token, {
         secret: this.configService.getOrThrow<string>('JWT_SECRET'),
       });
-      const userId = Number(payload?.sub ?? payload?.userId);
-      if (!userId) {
+      const parsedId = Number(payload?.sub ?? payload?.userId);
+      if (!Number.isFinite(parsedId)) {
         client.disconnect(true);
         return;
       }
+      const userId = parsedId;
 
       const user = await this.usersService.findById(userId);
       if (!user?.isChatEnabled) {
@@ -114,13 +120,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (authHeader?.startsWith('Bearer ')) {
       return authHeader.split(' ')[1];
     }
-    const tokenFromAuth = client.handshake.auth?.token;
-    if (typeof tokenFromAuth === 'string' && tokenFromAuth.length > 0) {
+    const tokenFromAuth = this.toTokenValue(client.handshake.auth?.token);
+    if (tokenFromAuth) {
       return tokenFromAuth;
     }
-    const tokenFromQuery = client.handshake.query?.token;
-    if (typeof tokenFromQuery === 'string' && tokenFromQuery.length > 0) {
+    const tokenFromQuery = this.toTokenValue(client.handshake.query?.token);
+    if (tokenFromQuery) {
       return tokenFromQuery;
+    }
+    return null;
+  }
+
+  private toTokenValue(value: unknown): string | null {
+    if (typeof value === 'string' && value.length > 0) {
+      return value;
     }
     return null;
   }

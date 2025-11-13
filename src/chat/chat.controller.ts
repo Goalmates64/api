@@ -14,6 +14,7 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ChatService } from './chat.service';
 import { SendMessageDto } from './dto/send-message.dto';
+import * as requestWithUser from '../common/types/request-with-user';
 
 @Controller('chat')
 @UseGuards(JwtAuthGuard)
@@ -21,14 +22,14 @@ export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
   @Get('rooms')
-  listRooms(@Req() req: any) {
+  listRooms(@Req() req: requestWithUser.RequestWithUser) {
     const userId = this.extractUserId(req);
     return this.chatService.listRooms(userId);
   }
 
   @Get('rooms/:roomId/messages')
   getMessages(
-    @Req() req: any,
+    @Req() req: requestWithUser.RequestWithUser,
     @Param('roomId', ParseIntPipe) roomId: number,
     @Query('beforeId') beforeId?: string,
   ) {
@@ -46,7 +47,7 @@ export class ChatController {
 
   @Post('rooms/:roomId/messages')
   sendMessage(
-    @Req() req: any,
+    @Req() req: requestWithUser.RequestWithUser,
     @Param('roomId', ParseIntPipe) roomId: number,
     @Body() dto: SendMessageDto,
   ) {
@@ -54,10 +55,10 @@ export class ChatController {
     return this.chatService.sendMessage(userId, roomId, dto);
   }
 
-  private extractUserId(req: any): number {
+  private extractUserId(req: requestWithUser.RequestWithUser): number {
     const userId = req.user?.userId ?? req.user?.sub;
     if (!userId) {
-      throw new UnauthorizedException('Utilisateur non authentifiÃ©');
+      throw new UnauthorizedException('Utilisateur non authentifié');
     }
     return Number(userId);
   }

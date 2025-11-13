@@ -9,12 +9,7 @@ import { del, head, list, put } from '@vercel/blob';
 
 type BlobAccess = 'public'; // v2 SDK supports only 'public' for access
 
-export type BlobUploadBody =
-  | string
-  | Buffer
-  | Uint8Array
-  | Blob
-  | ReadableStream<any>;
+export type BlobUploadBody = Parameters<typeof put>[1];
 
 export interface UploadedBlob {
   // Minimal common shape you can rely on from SDK calls
@@ -54,7 +49,7 @@ export class BlobStorageService {
     const normalizedPath = this.normalizePath(pathname, options);
 
     try {
-      const blob = await put(normalizedPath, body as any, {
+      const blob = await put(normalizedPath, body, {
         access: options?.access ?? 'public',
         contentType: options?.contentType,
         addRandomSuffix: false, // we handle suffix below if requested
@@ -69,30 +64,36 @@ export class BlobStorageService {
       try {
         const meta = await head(blob.url, { token });
         size = meta.size;
-        uploadedAtISO = meta.uploadedAt.toISOString();
-      } catch (e) {
+        uploadedAtISO = this.toIsoString(meta.uploadedAt);
+      } catch (error) {
+        const message = this.pickString(
+          (error as { message?: unknown })?.message,
+        );
         // head() is best-effort; keep going if it fails
         this.logger.warn(
-          `Blob head() failed for ${blob.pathname}: ${String(e?.message ?? e)}`,
+          `Blob head() failed for ${blob.pathname}: ${message ?? String(error)}`,
         );
       }
 
       return {
         pathname: blob.pathname,
         url: blob.url,
-        downloadUrl: (blob as any).downloadUrl ?? blob.url, // SDK returns downloadUrl
+        downloadUrl:
+          this.pickString(this.ensureRecord(blob)?.downloadUrl) ?? blob.url,
         contentType:
-          (blob as any).contentType ??
+          this.pickString(this.ensureRecord(blob)?.contentType) ??
           options?.contentType ??
           'application/octet-stream',
         size,
         uploadedAt: uploadedAtISO,
       };
-    } catch (err: any) {
-      const message =
-        typeof err?.message === 'string' ? err.message : String(err);
-      this.logger.error(`Blob upload failed: ${message}`);
-      throw new InternalServerErrorException(`Blob upload failed: ${message}`);
+    } catch (error: unknown) {
+      const message = this.pickString(
+        (error as { message?: unknown })?.message,
+      );
+      const fallback = message ?? String(error);
+      this.logger.error(`Blob upload failed: ${fallback}`);
+      throw new InternalServerErrorException(`Blob upload failed: ${fallback}`);
     }
   }
 
@@ -118,13 +119,15 @@ export class BlobStorageService {
         downloadUrl: match.downloadUrl,
         contentType: 'application/octet-stream', // list() does not include contentType; fetch with head() if needed
         size: match.size,
-        uploadedAt: match.uploadedAt?.toISOString?.(),
+        uploadedAt: this.toIsoString(match.uploadedAt),
       };
-    } catch (err: any) {
-      const message =
-        typeof err?.message === 'string' ? err.message : String(err);
-      this.logger.error(`Blob lookup failed: ${message}`);
-      throw new InternalServerErrorException(`Blob lookup failed: ${message}`);
+    } catch (error: unknown) {
+      const message = this.pickString(
+        (error as { message?: unknown })?.message,
+      );
+      const fallback = message ?? String(error);
+      this.logger.error(`Blob lookup failed: ${fallback}`);
+      throw new InternalServerErrorException(`Blob lookup failed: ${fallback}`);
     }
   }
 
@@ -134,12 +137,14 @@ export class BlobStorageService {
   async deleteObject(urlOrPathname: string | string[]): Promise<void> {
     const token = this.getToken();
     try {
-      await del(urlOrPathname as any, { token });
-    } catch (err: any) {
-      const message =
-        typeof err?.message === 'string' ? err.message : String(err);
-      this.logger.error(`Blob delete failed: ${message}`);
-      throw new InternalServerErrorException(`Blob delete failed: ${message}`);
+      await del(urlOrPathname, { token });
+    } catch (error: unknown) {
+      const message = this.pickString(
+        (error as { message?: unknown })?.message,
+      );
+      const fallback = message ?? String(error);
+      this.logger.error(`Blob delete failed: ${fallback}`);
+      throw new InternalServerErrorException(`Blob delete failed: ${fallback}`);
     }
   }
 
@@ -172,5 +177,29 @@ export class BlobStorageService {
       );
     }
     return token;
+  }
+
+  private ensureRecord(value: unknown): Record<string, unknown> | null {
+    if (value && typeof value === 'object') {
+      return value as Record<string, unknown>;
+    }
+    return null;
+  }
+
+  private pickString(value: unknown): string | undefined {
+    return typeof value === 'string' && value.trim().length > 0
+      ? value
+      : undefined;
+  }
+
+  private toIsoString(value: unknown): string | undefined {
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    if (typeof value === 'string' && value.trim().length > 0) {
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
+    }
+    return undefined;
   }
 }

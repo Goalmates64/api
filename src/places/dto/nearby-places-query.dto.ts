@@ -1,4 +1,4 @@
-﻿import { Transform } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
   IsInt,
   IsLatitude,
@@ -7,18 +7,19 @@ import {
   Max,
   Min,
 } from 'class-validator';
+import { toOptionalNumber, toRequiredNumber } from './transformers';
 
 export class NearbyPlacesQueryDto {
-  @Transform(({ value }) => Number(value))
+  @Transform(toRequiredNumber)
   @IsLatitude()
   lat: number;
 
-  @Transform(({ value }) => Number(value))
+  @Transform(toRequiredNumber)
   @IsLongitude()
   lng: number;
 
   @IsOptional()
-  @Transform(({ value }) => (value !== undefined ? Number(value) : value))
+  @Transform(toOptionalNumber)
   @IsInt()
   @Min(100)
   @Max(20000)

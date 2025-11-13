@@ -1,4 +1,4 @@
-﻿import { Transform } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
   IsInt,
   IsOptional,
@@ -7,6 +7,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { toOptionalNumber } from './transformers';
 
 export class ListPlacesQueryDto {
   @IsOptional()
@@ -15,13 +16,13 @@ export class ListPlacesQueryDto {
   query?: string;
 
   @IsOptional()
-  @Transform(({ value }) => (value !== undefined ? Number(value) : value))
+  @Transform(toOptionalNumber)
   @IsInt()
   @Min(1)
   page?: number;
 
   @IsOptional()
-  @Transform(({ value }) => (value !== undefined ? Number(value) : value))
+  @Transform(toOptionalNumber)
   @IsInt()
   @Min(1)
   @Max(100)

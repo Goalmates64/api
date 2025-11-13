@@ -49,7 +49,9 @@ export class TeamsService {
     });
     await this.memberRepo.save(membership);
 
-    this.logger.log(`Team ${team.name} (#${team.id}) created by user ${userId}`);
+    this.logger.log(
+      `Team ${team.name} (#${team.id}) created by user ${userId}`,
+    );
     return this.loadTeamWithMembers(team.id);
   }
 

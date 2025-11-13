@@ -21,6 +21,7 @@ import { memoryStorage } from 'multer';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import * as requestWithUser from '../common/types/request-with-user';
 
 type UploadedFile = {
   buffer: Buffer;
@@ -37,7 +38,7 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  async findCurrent(@Req() req: any) {
+  async findCurrent(@Req() req: requestWithUser.RequestWithUser) {
     const userId = this.extractUserId(req);
     this.logger.log(`Fetching current profile for userId=${userId}`);
     const profile = await this.usersService.getProfile(userId);
@@ -51,7 +52,10 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Patch('me')
-  updateCurrent(@Req() req: any, @Body() dto: UpdateProfileDto) {
+  updateCurrent(
+    @Req() req: requestWithUser.RequestWithUser,
+    @Body() dto: UpdateProfileDto,
+  ) {
     const userId = this.extractUserId(req);
     this.logger.log(`Updating profile for userId=${userId}`);
     return this.usersService.updateProfile(userId, dto);
@@ -65,7 +69,10 @@ export class UsersController {
       limits: { fileSize: 2 * 1024 * 1024 },
     }),
   )
-  uploadAvatar(@Req() req: any, @UploadedFile() file: UploadedFile) {
+  uploadAvatar(
+    @Req() req: requestWithUser.RequestWithUser,
+    @UploadedFile() file: UploadedFile,
+  ) {
     const userId = this.extractUserId(req);
     this.logger.log(`Uploading avatar for userId=${userId}`);
     return this.usersService.updateAvatar(userId, file);
@@ -80,7 +87,10 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  async findOne(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
+  async findOne(
+    @Req() req: requestWithUser.RequestWithUser,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
     const requesterId = this.extractUserId(req);
     if (requesterId !== id) {
       this.logger.warn(`User ${requesterId} attempted to access profile ${id}`);
@@ -97,10 +107,10 @@ export class UsersController {
     return profile;
   }
 
-  private extractUserId(req: any): number {
+  private extractUserId(req: requestWithUser.RequestWithUser): number {
     const userId = req.user?.userId ?? req.user?.sub;
     if (!userId) {
-      throw new UnauthorizedException('Utilisateur non authentifie');
+      throw new UnauthorizedException('Utilisateur non authentifié');
     }
     return Number(userId);
   }

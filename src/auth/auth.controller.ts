@@ -12,6 +12,7 @@ import { AuthService } from './auth.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import * as requestWithUser from '../common/types/request-with-user';
 
 @Controller('auth')
 export class AuthController {
@@ -23,7 +24,9 @@ export class AuthController {
   async register(@Body() dto: CreateUserDto) {
     this.logger.log(`Attempted registration for ${dto.email}`);
     const result = await this.authService.register(dto);
-    this.logger.log(`Created account for ${dto.email} (userId=${result.user.id})`);
+    this.logger.log(
+      `Created account for ${dto.email} (userId=${result.user.id})`,
+    );
     return result;
   }
 
@@ -37,10 +40,10 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  me(@Req() req: any) {
+  me(@Req() req: requestWithUser.RequestWithUser) {
     const userId = req.user?.userId ?? req.user?.sub;
     if (!userId) {
-      throw new UnauthorizedException('Utilisateur non authentifie');
+      throw new UnauthorizedException('Utilisateur non authentifié');
     }
     this.logger.log(`Fetched profile for userId=${userId}`);
     return this.authService.getProfile(Number(userId));
