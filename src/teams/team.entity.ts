@@ -21,6 +21,15 @@ export class Team {
   @Column({ length: 16 })
   inviteCode: string;
 
+  @Column({ default: false })
+  isPublic: boolean;
+
+  @Column({ type: 'varchar', length: 512, nullable: true })
+  logoUrl: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  logoPath: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

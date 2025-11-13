@@ -46,7 +46,22 @@ export class MatchesService {
       throw new NotFoundException('Équipe introuvable.');
     }
 
-    await this.ensureUserInTeams(userId, [homeTeam.id, awayTeam.id]);
+    const [homeMembership, awayMembership] = await Promise.all([
+      this.memberRepo.findOne({ where: { teamId: homeTeam.id, userId } }),
+      this.memberRepo.findOne({ where: { teamId: awayTeam.id, userId } }),
+    ]);
+
+    if (!homeMembership) {
+      throw new ForbiddenException(
+        "Tu dois appartenir à l'équipe domicile pour programmer un match.",
+      );
+    }
+
+    if (!awayMembership && !awayTeam.isPublic) {
+      throw new ForbiddenException(
+        'Cette équipe est privée. Tu dois en faire partie pour la défier.',
+      );
+    }
 
     const scheduledAt = new Date(dto.scheduledAt);
     if (Number.isNaN(scheduledAt.getTime())) {
@@ -157,7 +172,7 @@ export class MatchesService {
       where: { userId, teamId: In(teamIds) },
     });
     if (memberships === 0) {
-      throw new ForbiddenException('Tu dois appartenir à l’une des équipes.');
+      throw new ForbiddenException("Tu dois appartenir à l'une des équipes.");
     }
   }
 

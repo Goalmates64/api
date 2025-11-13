@@ -18,6 +18,16 @@ import { UpdateTeamDto } from './dto/update-team.dto';
 import { AddTeamMemberDto } from './dto/add-team-member.dto';
 import { User } from '../users/user.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { BlobStorageService } from '../storage/blob-storage.service';
+
+type UploadedFile = {
+  buffer: Buffer;
+  mimetype: string;
+  size: number;
+  originalname?: string;
+};
+
+type TeamWithCount = Team & { memberCount?: number };
 
 @Injectable()
 export class TeamsService {
@@ -30,16 +40,28 @@ export class TeamsService {
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     private readonly notificationsService: NotificationsService,
+    private readonly blobStorage: BlobStorageService,
   ) {}
 
   async createTeam(userId: number, dto: CreateTeamDto) {
-    const existing = await this.teamRepo.findOne({ where: { name: dto.name } });
+    const normalizedName = dto.name.trim();
+    if (!normalizedName) {
+      throw new BadRequestException("Nom d'équipe requis.");
+    }
+
+    const existing = await this.teamRepo.findOne({
+      where: { name: normalizedName },
+    });
     if (existing) {
       throw new ConflictException("Ce nom d'équipe est déjà utilisé.");
     }
 
     const inviteCode = await this.generateUniqueInviteCode();
-    const team = this.teamRepo.create({ name: dto.name, inviteCode });
+    const team = this.teamRepo.create({
+      name: normalizedName,
+      inviteCode,
+      isPublic: dto.isPublic ?? false,
+    });
     await this.teamRepo.save(team);
 
     const membership = this.memberRepo.create({
@@ -100,29 +122,106 @@ export class TeamsService {
     return teams.map((team) => this.mapTeamRelations(team));
   }
 
+  async searchPublicTeams(query: string) {
+    const trimmed = query?.trim();
+    if (!trimmed || trimmed.length < 2) {
+      return [];
+    }
+
+    const teams = await this.teamRepo
+      .createQueryBuilder('team')
+      .where('team.isPublic = :isPublic', { isPublic: true })
+      .andWhere('team.name LIKE :query', { query: `%${trimmed}%` })
+      .orderBy('team.name', 'ASC')
+      .limit(10)
+      .loadRelationCountAndMap('team.memberCount', 'team.members')
+      .getMany();
+
+    return teams.map((team) => ({
+      id: team.id,
+      name: team.name,
+      logoUrl: team.logoUrl ?? null,
+      isPublic: team.isPublic,
+      memberCount: this.extractMemberCount(team as TeamWithCount),
+    }));
+  }
+
   async getTeamForUser(teamId: number, userId: number) {
     await this.ensureUserInTeam(userId, teamId);
     return this.loadTeamWithMembers(teamId);
   }
 
   async updateTeam(userId: number, teamId: number, dto: UpdateTeamDto) {
+    const membership = await this.ensureUserInTeam(userId, teamId);
+    if (!membership.isCaptain) {
+      throw new ForbiddenException("Seul le capitaine peut modifier l'équipe.");
+    }
+
+    const updates: Partial<Team> = {};
     const newName = dto.name?.trim();
-    if (!newName) {
-      return this.getTeamForUser(teamId, userId);
+    if (newName) {
+      const existing = await this.teamRepo.findOne({
+        where: { name: newName },
+      });
+      if (existing && existing.id !== teamId) {
+        throw new ConflictException("Ce nom d'équipe est déjà utilisé.");
+      }
+      updates.name = newName;
+    }
+
+    if (dto.isPublic !== undefined) {
+      updates.isPublic = dto.isPublic;
+    }
+
+    if (!Object.keys(updates).length) {
+      return this.loadTeamWithMembers(teamId);
+    }
+
+    await this.teamRepo.update(teamId, updates);
+    this.logger.log(
+      `User ${userId} updated team ${teamId} with fields: ${Object.keys(
+        updates,
+      ).join(', ')}`,
+    );
+    return this.loadTeamWithMembers(teamId);
+  }
+
+  async updateTeamLogo(userId: number, teamId: number, file: UploadedFile) {
+    if (!file) {
+      throw new BadRequestException('Fichier obligatoire.');
     }
 
     const membership = await this.ensureUserInTeam(userId, teamId);
     if (!membership.isCaptain) {
-      throw new ForbiddenException('Seul le capitaine peut modifier l’équipe.');
+      throw new ForbiddenException("Seul le capitaine peut modifier l'équipe.");
     }
 
-    const existing = await this.teamRepo.findOne({ where: { name: newName } });
-    if (existing && existing.id !== teamId) {
-      throw new ConflictException("Ce nom d'équipe est déjà utilisé.");
+    const team = await this.teamRepo.findOne({ where: { id: teamId } });
+    if (!team) {
+      throw new NotFoundException('Équipe introuvable.');
     }
 
-    await this.teamRepo.update(teamId, { name: newName });
-    this.logger.log(`User ${userId} renamed team ${teamId} to ${newName}`);
+    this.ensureFileIsImage(file);
+
+    const extension = this.detectExtension(file);
+    const uploadResult = await this.blobStorage.uploadObject(
+      `team-logos/${team.id}/logo${extension ? `.${extension}` : ''}`,
+      file.buffer,
+      {
+        access: 'public',
+        contentType: file.mimetype,
+        addUniqueSuffix: true,
+      },
+    );
+
+    await this.deleteExistingLogo(team.logoPath, uploadResult.pathname);
+
+    team.logoUrl =
+      uploadResult.downloadUrl ?? uploadResult.url ?? team.logoUrl ?? null;
+    team.logoPath = uploadResult.pathname;
+
+    await this.teamRepo.save(team);
+    this.logger.log(`User ${userId} updated logo for team ${teamId}`);
     return this.loadTeamWithMembers(teamId);
   }
 
@@ -156,7 +255,7 @@ export class TeamsService {
       where: { teamId, userId: user.id },
     });
     if (alreadyMember) {
-      throw new ConflictException('Ce joueur fait déjà partie de l’équipe.');
+      throw new ConflictException("Ce joueur fait déjà partie de l'équipe.");
     }
 
     const newMember = this.memberRepo.create({
@@ -206,7 +305,7 @@ export class TeamsService {
   private mapTeamRelations(team: Team) {
     return {
       ...team,
-      memberCount: team.members?.length ?? 0,
+      memberCount: this.extractMemberCount(team as TeamWithCount),
       members: team.members?.map((member) => ({
         id: member.id,
         userId: member.userId,
@@ -222,6 +321,59 @@ export class TeamsService {
           : null,
       })),
     };
+  }
+
+  private extractMemberCount(team: TeamWithCount): number {
+    if (typeof team.memberCount === 'number') {
+      return team.memberCount;
+    }
+    return team.members?.length ?? 0;
+  }
+
+  private async deleteExistingLogo(
+    currentPath: string | null,
+    nextPath?: string,
+  ) {
+    if (!currentPath || currentPath === nextPath) {
+      return;
+    }
+    try {
+      await this.blobStorage.deleteObject(currentPath);
+    } catch (error) {
+      this.logger.warn(
+        `Unable to delete previous team logo ${currentPath}: ${String(error)}`,
+      );
+    }
+  }
+
+  private ensureFileIsImage(file: UploadedFile) {
+    const allowed = ['image/png', 'image/jpeg', 'image/webp'];
+    if (!allowed.includes(file.mimetype)) {
+      throw new BadRequestException('Format de fichier non supporté.');
+    }
+
+    const maxBytes = 2 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      throw new BadRequestException('Image trop volumineuse (max 2 Mo).');
+    }
+  }
+
+  private detectExtension(file: UploadedFile): string | null {
+    const original = file.originalname ?? '';
+    const match = original.match(/\.([a-zA-Z0-9]+)$/);
+    if (match) {
+      return match[1].toLowerCase();
+    }
+    if (file.mimetype === 'image/png') {
+      return 'png';
+    }
+    if (file.mimetype === 'image/jpeg') {
+      return 'jpg';
+    }
+    if (file.mimetype === 'image/webp') {
+      return 'webp';
+    }
+    return null;
   }
 
   private async generateUniqueInviteCode(): Promise<string> {

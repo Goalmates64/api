@@ -1,4 +1,10 @@
-import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export class UpdateTeamDto {
   @IsOptional()
@@ -6,4 +12,8 @@ export class UpdateTeamDto {
   @MinLength(3)
   @MaxLength(120)
   name?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isPublic?: boolean;
 }

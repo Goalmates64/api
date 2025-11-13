@@ -7,11 +7,13 @@ import { TeamsService } from './teams.service';
 import { TeamsController } from './teams.controller';
 import { User } from '../users/user.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { BlobStorageModule } from '../storage/blob-storage.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Team, TeamMember, User]),
     NotificationsModule,
+    BlobStorageModule,
   ],
   providers: [TeamsService],
   controllers: [TeamsController],
