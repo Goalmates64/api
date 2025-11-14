@@ -53,9 +53,6 @@ function resolveJwtExpiration(config: ConfigService): number | JwtExpiryString {
     return raw.toLowerCase() as JwtExpiryString;
   }
 
-  Logger.warn(
-    `JWT_EXPIRES_IN invalide (${raw}). Valeur par défaut 1h utilisée.`,
-    AuthModule.name,
-  );
+  Logger.warn(`JWT_EXPIRES_IN invalide (${raw}). Valeur par défaut 1h utilisée.`, AuthModule.name);
   return '1h';
 }

@@ -55,10 +55,7 @@ export class TeamsController {
   }
 
   @Get(':id')
-  getDetail(
-    @CurrentUser() userId: number,
-    @Param('id', ParseIntPipe) id: number,
-  ) {
+  getDetail(@CurrentUser() userId: number, @Param('id', ParseIntPipe) id: number) {
     this.logger.log(`User ${userId} fetching team ${id}`);
     return this.teamsService.getTeamForUser(id, userId);
   }

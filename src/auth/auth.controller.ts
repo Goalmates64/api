@@ -24,9 +24,7 @@ export class AuthController {
   async register(@Body() dto: CreateUserDto) {
     this.logger.log(`Attempted registration for ${dto.email}`);
     const result = await this.authService.register(dto);
-    this.logger.log(
-      `Created account for ${dto.email} (userId=${result.user.id})`,
-    );
+    this.logger.log(`Created account for ${dto.email} (userId=${result.user.id})`);
     return result;
   }
 

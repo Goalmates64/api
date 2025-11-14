@@ -8,10 +8,7 @@ import { MatchAttendanceStatus } from '../matches/attendance/match-attendance-st
 import { Team } from '../teams/team.entity';
 import { TeamMember } from '../teams/team-member.entity';
 import { Place } from '../places/place.entity';
-import {
-  NotificationsService,
-  NotificationSummary,
-} from '../notifications/notifications.service';
+import { NotificationsService, NotificationSummary } from '../notifications/notifications.service';
 import {
   DashboardActivityDto,
   DashboardMatchAttendanceDto,
@@ -77,29 +74,17 @@ export class DashboardService {
   ) {}
   async getOverview(userId: number): Promise<DashboardOverviewDto> {
     const teamIds = await this.getUserTeamIds(userId);
-    const [teams, upcomingMatches, previousMatches, notifications] =
-      await Promise.all([
-        this.loadTeams(teamIds),
-        this.loadUpcomingMatches(teamIds),
-        this.loadHistoryMatches(teamIds),
-        this.notificationsService.listForUser(userId),
-      ]);
-    const recommendedPlaces = await this.pickRecommendedPlaces(
-      upcomingMatches,
-      previousMatches,
-    );
-    const stats = this.buildStats(
-      teams,
-      upcomingMatches,
-      previousMatches,
-      notifications,
-    );
+    const [teams, upcomingMatches, previousMatches, notifications] = await Promise.all([
+      this.loadTeams(teamIds),
+      this.loadUpcomingMatches(teamIds),
+      this.loadHistoryMatches(teamIds),
+      this.notificationsService.listForUser(userId),
+    ]);
+    const recommendedPlaces = await this.pickRecommendedPlaces(upcomingMatches, previousMatches);
+    const stats = this.buildStats(teams, upcomingMatches, previousMatches, notifications);
     const nextMatch = this.buildNextMatchSummary(upcomingMatches, teams);
     const teamAvailability = this.buildTeamAvailability(teams, upcomingMatches);
-    const recentActivity = this.buildRecentActivity(
-      previousMatches,
-      notifications,
-    );
+    const recentActivity = this.buildRecentActivity(previousMatches, notifications);
     const weeklyLoad = this.buildWeeklyLoad(upcomingMatches);
     const trainingFocus = this.buildTrainingFocus(teams);
     const upcomingMatchesPreview = this.buildUpcomingPreview(upcomingMatches);
@@ -151,10 +136,9 @@ export class DashboardService {
       .leftJoinAndSelect('match.place', 'place')
       .where('match.status = :status', { status: MatchStatus.SCHEDULED })
       .andWhere('match.scheduledAt >= :now', { now })
-      .andWhere(
-        '(match.homeTeamId IN (:...teamIds) OR match.awayTeamId IN (:...teamIds))',
-        { teamIds },
-      )
+      .andWhere('(match.homeTeamId IN (:...teamIds) OR match.awayTeamId IN (:...teamIds))', {
+        teamIds,
+      })
       .orderBy('match.scheduledAt', 'ASC')
       .limit(20)
       .getMany();
@@ -171,10 +155,9 @@ export class DashboardService {
       .where('match.status IN (:...statuses)', {
         statuses: [MatchStatus.PLAYED, MatchStatus.CANCELED],
       })
-      .andWhere(
-        '(match.homeTeamId IN (:...teamIds) OR match.awayTeamId IN (:...teamIds))',
-        { teamIds },
-      )
+      .andWhere('(match.homeTeamId IN (:...teamIds) OR match.awayTeamId IN (:...teamIds))', {
+        teamIds,
+      })
       .orderBy('match.scheduledAt', 'DESC')
       .limit(25)
       .getMany();
@@ -218,17 +201,14 @@ export class DashboardService {
       (match) => match.status === MatchStatus.PLAYED,
     ).length;
     const availability = this.computeAverageAvailability(teams);
-    const unreadNotifications = notifications.filter(
-      (notif) => !notif.isRead,
-    ).length;
+    const unreadNotifications = notifications.filter((notif) => !notif.isRead).length;
     return [
       {
         id: 'played',
         label: 'Matchs joués',
         value: matchesPlayed.toString(),
         trend: matchesPlayed > 0 ? 'up' : 'steady',
-        trendLabel:
-          matchesPlayed > 0 ? '+2 vs sem. dernière' : 'Planifie un match',
+        trendLabel: matchesPlayed > 0 ? '+2 vs sem. dernière' : 'Planifie un match',
         badge: matchesPlayed > 4 ? 'Rythme élevé' : undefined,
       },
       {
@@ -236,19 +216,14 @@ export class DashboardService {
         label: 'Matchs à venir',
         value: upcomingMatches.length.toString(),
         trend: upcomingMatches.length ? 'up' : 'steady',
-        trendLabel:
-          upcomingMatches.length > 0
-            ? 'Calendrier rempli'
-            : 'Ajoute une rencontre',
+        trendLabel: upcomingMatches.length > 0 ? 'Calendrier rempli' : 'Ajoute une rencontre',
       },
       {
         id: 'availability',
         label: 'Présence confirmée',
         value: `${availability}%`,
-        trend:
-          availability >= 75 ? 'up' : availability >= 50 ? 'steady' : 'down',
-        trendLabel:
-          availability >= 75 ? 'Effectif stable' : 'Rappelle tes joueurs',
+        trend: availability >= 75 ? 'up' : availability >= 50 ? 'steady' : 'down',
+        trendLabel: availability >= 75 ? 'Effectif stable' : 'Rappelle tes joueurs',
       },
       {
         id: 'notifications',
@@ -257,29 +232,18 @@ export class DashboardService {
         trend: unreadNotifications > 0 ? 'up' : 'steady',
         trendLabel:
           unreadNotifications > 0
-            ? `${unreadNotifications} notification${
-                unreadNotifications > 1 ? 's' : ''
-              }`
+            ? `${unreadNotifications} notification${unreadNotifications > 1 ? 's' : ''}`
             : 'Tout est lu',
       },
     ];
   }
-  private buildNextMatchSummary(
-    matches: Match[],
-    teams: Team[],
-  ): DashboardMatchSummaryDto | null {
+  private buildNextMatchSummary(matches: Match[], teams: Team[]): DashboardMatchSummaryDto | null {
     if (!matches.length) {
       return null;
     }
-    const sorted = [...matches].sort(
-      (a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime(),
-    );
+    const sorted = [...matches].sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime());
     const next = sorted[0];
-    const homeTeamName = this.resolveTeamName(
-      next.homeTeamId,
-      next.homeTeam,
-      teams,
-    );
+    const homeTeamName = this.resolveTeamName(next.homeTeamId, next.homeTeam, teams);
     const awayTeamName = this.resolveTeamName(
       next.awayTeamId,
       next.awayTeam,
@@ -299,10 +263,7 @@ export class DashboardService {
       readiness: this.estimateReadiness(next, teams),
     };
   }
-  private buildTeamAvailability(
-    teams: Team[],
-    upcomingMatches: Match[],
-  ): TeamAvailabilityDto[] {
+  private buildTeamAvailability(teams: Team[], upcomingMatches: Match[]): TeamAvailabilityDto[] {
     return teams.slice(0, 4).map((team) => {
       const availabilityRate = this.computeTeamAvailability(team);
       const upcomingMatch = upcomingMatches.find(
@@ -312,15 +273,8 @@ export class DashboardService {
         id: `team-${team.id}`,
         teamName: team.name,
         availabilityRate,
-        confidence:
-          availabilityRate >= 80
-            ? 'high'
-            : availabilityRate >= 55
-              ? 'medium'
-              : 'low',
-        nextMatchAt: upcomingMatch
-          ? upcomingMatch.scheduledAt.toISOString()
-          : null,
+        confidence: availabilityRate >= 80 ? 'high' : availabilityRate >= 55 ? 'medium' : 'low',
+        nextMatchAt: upcomingMatch ? upcomingMatch.scheduledAt.toISOString() : null,
       };
     });
   }
@@ -328,23 +282,21 @@ export class DashboardService {
     history: Match[],
     notifications: NotificationSummary[],
   ): DashboardActivityDto[] {
-    const matchActivities: DashboardActivityDto[] = history
-      .slice(0, 3)
-      .map((match) => {
-        const opponent = match.awayTeam?.name ?? 'Adversaire';
-        const scoreLabel =
-          match.homeScore !== null && match.awayScore !== null
-            ? `${match.homeScore}-${match.awayScore}`
-            : 'Score à reporter';
-        return {
-          id: `match-${match.id}`,
-          title: `${match.homeTeam?.name ?? 'Équipe'} vs ${opponent}`,
-          description: match.place?.name ?? 'Score enregistré',
-          timestamp: match.scheduledAt.toISOString(),
-          type: 'match',
-          statusLabel: scoreLabel,
-        };
-      });
+    const matchActivities: DashboardActivityDto[] = history.slice(0, 3).map((match) => {
+      const opponent = match.awayTeam?.name ?? 'Adversaire';
+      const scoreLabel =
+        match.homeScore !== null && match.awayScore !== null
+          ? `${match.homeScore}-${match.awayScore}`
+          : 'Score à reporter';
+      return {
+        id: `match-${match.id}`,
+        title: `${match.homeTeam?.name ?? 'Équipe'} vs ${opponent}`,
+        description: match.place?.name ?? 'Score enregistré',
+        timestamp: match.scheduledAt.toISOString(),
+        type: 'match',
+        statusLabel: scoreLabel,
+      };
+    });
     const notificationActivities: DashboardActivityDto[] = notifications
       .slice(0, 4)
       .map((notif) => ({
@@ -356,8 +308,7 @@ export class DashboardService {
         statusLabel: notif.isRead ? 'Lu' : 'Nouveau',
       }));
     return [...matchActivities, ...notificationActivities].sort(
-      (a, b) =>
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
     );
   }
   private buildWeeklyLoad(matches: Match[]): WeeklyMatchLoadDto[] {
@@ -366,9 +317,7 @@ export class DashboardService {
     return Array.from({ length: 6 }).map((_, index) => {
       const day = new Date(start);
       day.setDate(start.getDate() + index);
-      const count = matches.filter((match) =>
-        this.isSameDay(match.scheduledAt, day),
-      ).length;
+      const count = matches.filter((match) => this.isSameDay(match.scheduledAt, day)).length;
       return {
         dayLabel: index === 0 ? "Aujourd'hui" : this.getDayLabel(day),
         matches: count,
@@ -377,16 +326,9 @@ export class DashboardService {
   }
   private buildTrainingFocus(teams: Team[]): TrainingFocusDto[] {
     const averageRosterSize = teams.length
-      ? Math.round(
-          teams.reduce((acc, team) => acc + this.getTeamSize(team), 0) /
-            teams.length,
-        )
+      ? Math.round(teams.reduce((acc, team) => acc + this.getTeamSize(team), 0) / teams.length)
       : 0;
-    const cohesion = this.clamp(
-      Math.round((averageRosterSize / 10) * 100),
-      15,
-      100,
-    );
+    const cohesion = this.clamp(Math.round((averageRosterSize / 10) * 100), 15, 100);
     return [
       {
         id: 'cohesion',
@@ -431,18 +373,14 @@ export class DashboardService {
       inviteCode: team.inviteCode,
       isPublic: team.isPublic,
       logoUrl: team.logoUrl ?? null,
-      createdAt: team.createdAt
-        ? team.createdAt.toISOString()
-        : new Date().toISOString(),
+      createdAt: team.createdAt ? team.createdAt.toISOString() : new Date().toISOString(),
       memberCount: this.getTeamSize(team),
       members: (team.members ?? []).map((member) => ({
         id: member.id,
         userId: member.userId,
         teamId: member.teamId,
         isCaptain: member.isCaptain,
-        joinedAt: member.joinedAt
-          ? member.joinedAt.toISOString()
-          : new Date().toISOString(),
+        joinedAt: member.joinedAt ? member.joinedAt.toISOString() : new Date().toISOString(),
       })),
     };
   }
@@ -480,18 +418,14 @@ export class DashboardService {
         : undefined,
     };
   }
-  private toAttendanceDto(
-    attendance: MatchAttendance,
-  ): DashboardMatchAttendanceDto {
+  private toAttendanceDto(attendance: MatchAttendance): DashboardMatchAttendanceDto {
     return {
       id: attendance.id,
       matchId: attendance.matchId,
       userId: attendance.userId,
       status: attendance.status,
       reason: attendance.reason ?? null,
-      respondedAt: attendance.respondedAt
-        ? attendance.respondedAt.toISOString()
-        : null,
+      respondedAt: attendance.respondedAt ? attendance.respondedAt.toISOString() : null,
     };
   }
   private toRecommendedPlace(place: Place): RecommendedPlaceDto {
@@ -507,10 +441,7 @@ export class DashboardService {
     if (!teams.length) {
       return 0;
     }
-    const total = teams.reduce(
-      (acc, team) => acc + this.computeTeamAvailability(team),
-      0,
-    );
+    const total = teams.reduce((acc, team) => acc + this.computeTeamAvailability(team), 0);
     return Math.round(total / teams.length);
   }
   private computeTeamAvailability(team: Team): number {
@@ -536,18 +467,13 @@ export class DashboardService {
     return emptyLabel;
   }
   private estimateReadiness(match: Match, teams: Team[]): number {
-    const homeTeam =
-      teams.find((team) => team.id === match.homeTeamId) ?? match.homeTeam;
-    const awayTeam =
-      teams.find((team) => team.id === match.awayTeamId) ?? match.awayTeam;
+    const homeTeam = teams.find((team) => team.id === match.homeTeamId) ?? match.homeTeam;
+    const awayTeam = teams.find((team) => team.id === match.awayTeamId) ?? match.awayTeam;
     const homeScore = homeTeam ? this.computeTeamAvailability(homeTeam) : 60;
     const awayScore = awayTeam ? this.computeTeamAvailability(awayTeam) : 55;
     return Math.round((homeScore + awayScore) / 2);
   }
-  private attendanceRateForTeam(
-    team: Team | undefined,
-    match: Match | null,
-  ): number | null {
+  private attendanceRateForTeam(team: Team | undefined, match: Match | null): number | null {
     if (!team?.members?.length || !match?.attendances?.length) {
       return null;
     }
@@ -557,8 +483,7 @@ export class DashboardService {
     }
     const confirmed = match.attendances.filter(
       (attendance) =>
-        attendance.status === MatchAttendanceStatus.PRESENT &&
-        memberIds.has(attendance.userId),
+        attendance.status === MatchAttendanceStatus.PRESENT && memberIds.has(attendance.userId),
     ).length;
     return Math.round((confirmed / memberIds.size) * 100);
   }

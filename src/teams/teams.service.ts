@@ -71,9 +71,7 @@ export class TeamsService {
     });
     await this.memberRepo.save(membership);
 
-    this.logger.log(
-      `Team ${team.name} (#${team.id}) created by user ${userId}`,
-    );
+    this.logger.log(`Team ${team.name} (#${team.id}) created by user ${userId}`);
     return this.loadTeamWithMembers(team.id);
   }
 
@@ -179,9 +177,7 @@ export class TeamsService {
 
     await this.teamRepo.update(teamId, updates);
     this.logger.log(
-      `User ${userId} updated team ${teamId} with fields: ${Object.keys(
-        updates,
-      ).join(', ')}`,
+      `User ${userId} updated team ${teamId} with fields: ${Object.keys(updates).join(', ')}`,
     );
     return this.loadTeamWithMembers(teamId);
   }
@@ -216,8 +212,7 @@ export class TeamsService {
 
     await this.deleteExistingLogo(team.logoPath, uploadResult.pathname);
 
-    team.logoUrl =
-      uploadResult.downloadUrl ?? uploadResult.url ?? team.logoUrl ?? null;
+    team.logoUrl = uploadResult.downloadUrl ?? uploadResult.url ?? team.logoUrl ?? null;
     team.logoPath = uploadResult.pathname;
 
     await this.teamRepo.save(team);
@@ -225,16 +220,10 @@ export class TeamsService {
     return this.loadTeamWithMembers(teamId);
   }
 
-  async addMemberByUsername(
-    userId: number,
-    teamId: number,
-    dto: AddTeamMemberDto,
-  ) {
+  async addMemberByUsername(userId: number, teamId: number, dto: AddTeamMemberDto) {
     const membership = await this.ensureUserInTeam(userId, teamId);
     if (!membership.isCaptain) {
-      throw new ForbiddenException(
-        'Seul le capitaine peut inviter de nouveaux joueurs.',
-      );
+      throw new ForbiddenException('Seul le capitaine peut inviter de nouveaux joueurs.');
     }
 
     const team = await this.teamRepo.findOne({ where: { id: teamId } });
@@ -330,19 +319,14 @@ export class TeamsService {
     return team.members?.length ?? 0;
   }
 
-  private async deleteExistingLogo(
-    currentPath: string | null,
-    nextPath?: string,
-  ) {
+  private async deleteExistingLogo(currentPath: string | null, nextPath?: string) {
     if (!currentPath || currentPath === nextPath) {
       return;
     }
     try {
       await this.blobStorage.deleteObject(currentPath);
     } catch (error) {
-      this.logger.warn(
-        `Unable to delete previous team logo ${currentPath}: ${String(error)}`,
-      );
+      this.logger.warn(`Unable to delete previous team logo ${currentPath}: ${String(error)}`);
     }
   }
 
@@ -386,8 +370,6 @@ export class TeamsService {
         return candidate;
       }
     }
-    throw new BadRequestException(
-      "Impossible de générer un code d'invitation unique.",
-    );
+    throw new BadRequestException("Impossible de générer un code d'invitation unique.");
   }
 }

@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -58,9 +53,7 @@ export class UsersService {
     return this.repo.findOne({ where: { id } });
   }
 
-  async searchByUsername(
-    query: string,
-  ): Promise<Array<Pick<User, 'id' | 'username' | 'email'>>> {
+  async searchByUsername(query: string): Promise<Array<Pick<User, 'id' | 'username' | 'email'>>> {
     const trimmed = query?.trim();
     if (!trimmed) {
       return [];
@@ -80,10 +73,7 @@ export class UsersService {
     return user ? this.toProfile(user) : null;
   }
 
-  async updateProfile(
-    userId: number,
-    dto: UpdateProfileDto,
-  ): Promise<UserProfileDto> {
+  async updateProfile(userId: number, dto: UpdateProfileDto): Promise<UserProfileDto> {
     const user = await this.findById(userId);
     if (!user) {
       this.logger.error(`Attempt to update missing user ${userId}`);
@@ -134,10 +124,7 @@ export class UsersService {
     };
   }
 
-  async updateAvatar(
-    userId: number,
-    file: UploadedFile,
-  ): Promise<UserProfileDto> {
+  async updateAvatar(userId: number, file: UploadedFile): Promise<UserProfileDto> {
     if (!file) {
       throw new BadRequestException('Fichier obligatoire.');
     }
@@ -161,8 +148,7 @@ export class UsersService {
       },
     );
 
-    user.avatarUrl =
-      uploadResult.downloadUrl ?? uploadResult.url ?? user.avatarUrl;
+    user.avatarUrl = uploadResult.downloadUrl ?? uploadResult.url ?? user.avatarUrl;
     user.avatarPath = uploadResult.pathname;
 
     await this.repo.save(user);

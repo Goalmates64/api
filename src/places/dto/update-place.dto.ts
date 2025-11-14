@@ -11,11 +11,7 @@ import {
 } from 'class-validator';
 
 import { ISO_COUNTRY_CODES } from '../iso-country-codes';
-import {
-  toOptionalNumber,
-  toTrimmedString,
-  toUppercaseCountry,
-} from './transformers';
+import { toOptionalNumber, toTrimmedString, toUppercaseCountry } from './transformers';
 
 export class UpdatePlaceDto {
   @Transform(toTrimmedString)

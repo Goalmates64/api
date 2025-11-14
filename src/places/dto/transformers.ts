@@ -23,9 +23,7 @@ export const toRequiredNumber = ({ value }: TransformFnParams): number => {
   return Number(value);
 };
 
-export const toOptionalNumber = ({
-  value,
-}: TransformFnParams): number | undefined => {
+export const toOptionalNumber = ({ value }: TransformFnParams): number | undefined => {
   if (value === undefined || value === null || value === '') {
     return undefined;
   }

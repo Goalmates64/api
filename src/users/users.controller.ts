@@ -52,10 +52,7 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Patch('me')
-  updateCurrent(
-    @Req() req: requestWithUser.RequestWithUser,
-    @Body() dto: UpdateProfileDto,
-  ) {
+  updateCurrent(@Req() req: requestWithUser.RequestWithUser, @Body() dto: UpdateProfileDto) {
     const userId = this.extractUserId(req);
     this.logger.log(`Updating profile for userId=${userId}`);
     return this.usersService.updateProfile(userId, dto);
@@ -69,10 +66,7 @@ export class UsersController {
       limits: { fileSize: 2 * 1024 * 1024 },
     }),
   )
-  uploadAvatar(
-    @Req() req: requestWithUser.RequestWithUser,
-    @UploadedFile() file: UploadedFile,
-  ) {
+  uploadAvatar(@Req() req: requestWithUser.RequestWithUser, @UploadedFile() file: UploadedFile) {
     const userId = this.extractUserId(req);
     this.logger.log(`Uploading avatar for userId=${userId}`);
     return this.usersService.updateAvatar(userId, file);

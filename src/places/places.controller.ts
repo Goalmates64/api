@@ -42,9 +42,7 @@ export class PlacesController {
   @Get('nearby')
   nearby(@Query() query: NearbyPlacesQueryDto) {
     this.logger.log(
-      `Recherche de lieux autour de ${query.lat},${query.lng} (r=${
-        query.radius ?? 1000
-      }m)`,
+      `Recherche de lieux autour de ${query.lat},${query.lng} (r=${query.radius ?? 1000}m)`,
     );
     return this.placesService.nearby(query);
   }

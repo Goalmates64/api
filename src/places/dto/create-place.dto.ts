@@ -10,11 +10,7 @@ import {
 } from 'class-validator';
 
 import { ISO_COUNTRY_CODES } from '../iso-country-codes';
-import {
-  toRequiredNumber,
-  toTrimmedString,
-  toUppercaseCountry,
-} from './transformers';
+import { toRequiredNumber, toTrimmedString, toUppercaseCountry } from './transformers';
 
 export class CreatePlaceDto {
   @Transform(toTrimmedString)

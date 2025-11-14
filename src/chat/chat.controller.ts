@@ -35,13 +35,8 @@ export class ChatController {
   ) {
     const userId = this.extractUserId(req);
     const rawCursor =
-      typeof beforeId === 'string' && beforeId.length > 0
-        ? Number(beforeId)
-        : undefined;
-    const cursor =
-      rawCursor !== undefined && Number.isFinite(rawCursor)
-        ? rawCursor
-        : undefined;
+      typeof beforeId === 'string' && beforeId.length > 0 ? Number(beforeId) : undefined;
+    const cursor = rawCursor !== undefined && Number.isFinite(rawCursor) ? rawCursor : undefined;
     return this.chatService.getMessages(userId, roomId, cursor);
   }
 

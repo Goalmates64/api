@@ -1,9 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  OnGatewayConnection,
-  OnGatewayDisconnect,
-  WebSocketGateway,
-} from '@nestjs/websockets';
+import { OnGatewayConnection, OnGatewayDisconnect, WebSocketGateway } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -27,9 +23,7 @@ type JwtPayload = {
   },
 })
 @Injectable()
-export class NotificationsGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
-{
+export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(NotificationsGateway.name);
   private readonly userSockets = new Map<number, Set<AuthenticatedSocket>>();
 
@@ -61,8 +55,7 @@ export class NotificationsGateway
       sockets.add(client);
       this.userSockets.set(userId, sockets);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Erreur de validation JWT';
+      const message = error instanceof Error ? error.message : 'Erreur de validation JWT';
       this.logger.warn('Connexion WS refusée: ' + message);
       client.disconnect(true);
     }

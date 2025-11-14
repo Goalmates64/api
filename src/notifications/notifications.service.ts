@@ -47,9 +47,7 @@ export class NotificationsService {
 
     return notifications.map((notification) => {
       const senderSummary =
-        notification.senderId !== null
-          ? (senderMap.get(notification.senderId) ?? null)
-          : null;
+        notification.senderId !== null ? (senderMap.get(notification.senderId) ?? null) : null;
 
       return this.toSummary(notification, senderSummary);
     });
@@ -84,9 +82,7 @@ export class NotificationsService {
     return summary;
   }
 
-  async createNotification(
-    payload: CreateNotificationPayload,
-  ): Promise<NotificationSummary> {
+  async createNotification(payload: CreateNotificationPayload): Promise<NotificationSummary> {
     const notification = this.notificationRepo.create({
       senderId: payload.senderId ?? null,
       receiverId: payload.receiverId,
@@ -120,20 +116,13 @@ export class NotificationsService {
 
     const saved = await this.notificationRepo.save(notifications);
 
-    const senderMap = await this.loadSenders(
-      saved.map((entry) => entry.senderId),
-    );
+    const senderMap = await this.loadSenders(saved.map((entry) => entry.senderId));
 
     saved.forEach((entry) => {
       const senderSummary =
-        entry.senderId !== null
-          ? (senderMap.get(entry.senderId) ?? null)
-          : null;
+        entry.senderId !== null ? (senderMap.get(entry.senderId) ?? null) : null;
       const summary = this.toSummary(entry, senderSummary);
-      this.notificationsGateway.emitNewNotification(
-        summary.receiverId,
-        summary,
-      );
+      this.notificationsGateway.emitNewNotification(summary.receiverId, summary);
     });
 
     await this.emitUnreadCountsForUsers(saved.map((entry) => entry.receiverId));

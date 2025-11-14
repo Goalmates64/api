@@ -24,10 +24,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath:
-        process.env.NODE_ENV === 'production'
-          ? ['.env']
-          : ['.env.local', '.env'],
+      envFilePath: process.env.NODE_ENV === 'production' ? ['.env'] : ['.env.local', '.env'],
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],

@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
 import { del, head, list, put } from '@vercel/blob';
@@ -66,20 +62,15 @@ export class BlobStorageService {
         size = meta.size;
         uploadedAtISO = this.toIsoString(meta.uploadedAt);
       } catch (error) {
-        const message = this.pickString(
-          (error as { message?: unknown })?.message,
-        );
+        const message = this.pickString((error as { message?: unknown })?.message);
         // head() is best-effort; keep going if it fails
-        this.logger.warn(
-          `Blob head() failed for ${blob.pathname}: ${message ?? String(error)}`,
-        );
+        this.logger.warn(`Blob head() failed for ${blob.pathname}: ${message ?? String(error)}`);
       }
 
       return {
         pathname: blob.pathname,
         url: blob.url,
-        downloadUrl:
-          this.pickString(this.ensureRecord(blob)?.downloadUrl) ?? blob.url,
+        downloadUrl: this.pickString(this.ensureRecord(blob)?.downloadUrl) ?? blob.url,
         contentType:
           this.pickString(this.ensureRecord(blob)?.contentType) ??
           options?.contentType ??
@@ -88,9 +79,7 @@ export class BlobStorageService {
         uploadedAt: uploadedAtISO,
       };
     } catch (error: unknown) {
-      const message = this.pickString(
-        (error as { message?: unknown })?.message,
-      );
+      const message = this.pickString((error as { message?: unknown })?.message);
       const fallback = message ?? String(error);
       this.logger.error(`Blob upload failed: ${fallback}`);
       throw new InternalServerErrorException(`Blob upload failed: ${fallback}`);
@@ -122,9 +111,7 @@ export class BlobStorageService {
         uploadedAt: this.toIsoString(match.uploadedAt),
       };
     } catch (error: unknown) {
-      const message = this.pickString(
-        (error as { message?: unknown })?.message,
-      );
+      const message = this.pickString((error as { message?: unknown })?.message);
       const fallback = message ?? String(error);
       this.logger.error(`Blob lookup failed: ${fallback}`);
       throw new InternalServerErrorException(`Blob lookup failed: ${fallback}`);
@@ -139,9 +126,7 @@ export class BlobStorageService {
     try {
       await del(urlOrPathname, { token });
     } catch (error: unknown) {
-      const message = this.pickString(
-        (error as { message?: unknown })?.message,
-      );
+      const message = this.pickString((error as { message?: unknown })?.message);
       const fallback = message ?? String(error);
       this.logger.error(`Blob delete failed: ${fallback}`);
       throw new InternalServerErrorException(`Blob delete failed: ${fallback}`);
@@ -167,9 +152,7 @@ export class BlobStorageService {
   }
 
   private getToken(): string {
-    const token = this.configService
-      .get<string>('BLOB_READ_WRITE_TOKEN')
-      ?.trim();
+    const token = this.configService.get<string>('BLOB_READ_WRITE_TOKEN')?.trim();
     if (!token) {
       this.logger.error('BLOB_READ_WRITE_TOKEN is not configured.');
       throw new InternalServerErrorException(
@@ -187,9 +170,7 @@ export class BlobStorageService {
   }
 
   private pickString(value: unknown): string | undefined {
-    return typeof value === 'string' && value.trim().length > 0
-      ? value
-      : undefined;
+    return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
   }
 
   private toIsoString(value: unknown): string | undefined {

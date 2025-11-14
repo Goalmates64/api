@@ -96,11 +96,7 @@ export class ChatService {
     };
   }
 
-  async sendMessage(
-    userId: number,
-    roomId: number,
-    dto: SendMessageDto,
-  ): Promise<ChatMessageDto> {
+  async sendMessage(userId: number, roomId: number, dto: SendMessageDto): Promise<ChatMessageDto> {
     const user = await this.ensureChatEnabled(userId);
     const room = await this.roomRepo.findOne({ where: { id: roomId } });
     if (!room) {
@@ -119,9 +115,7 @@ export class ChatService {
       content: trimmed,
     });
     const saved = await this.messageRepo.save(message);
-    this.logger.log(
-      `User ${user.id} posted message #${saved.id} in room ${room.id}`,
-    );
+    this.logger.log(`User ${user.id} posted message #${saved.id} in room ${room.id}`);
     const fullMessage = await this.messageRepo.findOne({
       where: { id: saved.id },
       relations: ['sender'],
@@ -149,10 +143,7 @@ export class ChatService {
       if (!membership.team) {
         continue;
       }
-      const room = await this.ensureTeamRoom(
-        membership.team.id,
-        membership.team.name,
-      );
+      const room = await this.ensureTeamRoom(membership.team.id, membership.team.name);
       room.team = membership.team;
       rooms.push(room);
     }
@@ -196,23 +187,17 @@ export class ChatService {
     return room;
   }
 
-  private async ensureTeamRoom(
-    teamId: number,
-    teamName?: string,
-  ): Promise<ChatRoom> {
+  private async ensureTeamRoom(teamId: number, teamName?: string): Promise<ChatRoom> {
     let room = await this.roomRepo.findOne({
       where: { type: ChatRoomType.TEAM, teamId },
     });
-    const desiredName = teamName
-      ? `${teamName} - Salon d'equipe`
-      : "Salon d'equipe";
+    const desiredName = teamName ? `${teamName} - Salon d'equipe` : "Salon d'equipe";
     if (!room) {
       room = this.roomRepo.create({
         type: ChatRoomType.TEAM,
         teamId,
         name: desiredName,
-        description:
-          'Organise les entrainements et reste en phase avec tes coequipiers.',
+        description: 'Organise les entrainements et reste en phase avec tes coequipiers.',
       });
       room = await this.roomRepo.save(room);
     } else if (teamName && room.name !== desiredName) {
@@ -232,8 +217,7 @@ export class ChatService {
         type: ChatRoomType.MATCH,
         matchId: match.id,
         name: `Match - ${label}`,
-        description:
-          'Coordonne-toi avec les deux equipes avant et apres la rencontre.',
+        description: 'Coordonne-toi avec les deux equipes avant et apres la rencontre.',
       });
       room = await this.roomRepo.save(room);
     }

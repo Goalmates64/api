@@ -1,11 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import {
-  OnGatewayConnection,
-  OnGatewayDisconnect,
-  WebSocketGateway,
-} from '@nestjs/websockets';
+import { OnGatewayConnection, OnGatewayDisconnect, WebSocketGateway } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
 
 import { UsersService } from '../users/users.service';
@@ -68,10 +64,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       sockets.add(client);
       this.userSockets.set(userId, sockets);
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Impossible de valider le token';
+      const message = error instanceof Error ? error.message : 'Impossible de valider le token';
       this.logger.warn(`Connexion WebSocket chat refusÃ©e: ${message}`);
       client.disconnect(true);
     }
@@ -96,9 +89,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   emitMessageToUsers(userIds: number[], message: ChatMessageDto) {
     const unique = Array.from(new Set(userIds));
-    unique.forEach((userId) =>
-      this.emitToUser(userId, 'chat:message', message),
-    );
+    unique.forEach((userId) => this.emitToUser(userId, 'chat:message', message));
   }
 
   emitMessageToAll(message: ChatMessageDto) {

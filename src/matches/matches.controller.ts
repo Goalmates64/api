@@ -59,9 +59,7 @@ export class MatchesController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateAttendanceDto,
   ) {
-    this.logger.log(
-      `User ${userId} updating attendance for match ${id} with status ${dto.status}`,
-    );
+    this.logger.log(`User ${userId} updating attendance for match ${id} with status ${dto.status}`);
     return this.matchesService.respondAttendance(userId, id, dto);
   }
 }

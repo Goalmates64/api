@@ -41,9 +41,7 @@ export class MatchesService {
 
   async createMatch(userId: number, dto: CreateMatchDto) {
     if (dto.homeTeamId === dto.awayTeamId) {
-      throw new BadRequestException(
-        'Une équipe ne peut pas jouer contre elle-même.',
-      );
+      throw new BadRequestException('Une équipe ne peut pas jouer contre elle-même.');
     }
 
     const [homeTeam, awayTeam] = await Promise.all([
@@ -115,12 +113,9 @@ export class MatchesService {
       .leftJoinAndSelect('match.place', 'place')
       .where('match.status = :status', { status: MatchStatus.SCHEDULED })
       .andWhere('match.scheduledAt >= :now', { now: new Date() })
-      .andWhere(
-        '(match.homeTeamId IN (:...teamIds) OR match.awayTeamId IN (:...teamIds))',
-        {
-          teamIds,
-        },
-      )
+      .andWhere('(match.homeTeamId IN (:...teamIds) OR match.awayTeamId IN (:...teamIds))', {
+        teamIds,
+      })
       .orderBy('match.scheduledAt', 'ASC')
       .getMany();
 
@@ -140,12 +135,9 @@ export class MatchesService {
       .leftJoinAndSelect('match.homeTeam', 'homeTeam')
       .leftJoinAndSelect('match.awayTeam', 'awayTeam')
       .leftJoinAndSelect('match.place', 'place')
-      .where(
-        '(match.homeTeamId IN (:...teamIds) OR match.awayTeamId IN (:...teamIds))',
-        {
-          teamIds,
-        },
-      )
+      .where('(match.homeTeamId IN (:...teamIds) OR match.awayTeamId IN (:...teamIds))', {
+        teamIds,
+      })
       .andWhere(
         '(match.status IN (:...statuses)) OR (match.status = :scheduled AND match.scheduledAt < :now)',
         {
@@ -252,9 +244,7 @@ export class MatchesService {
 
       awayTeam: match.awayTeam ?? { id: match.awayTeamId },
 
-      place:
-        match.place ??
-        (match.placeId ? ({ id: match.placeId } as Place) : null),
+      place: match.place ?? (match.placeId ? ({ id: match.placeId } as Place) : null),
 
       attendances: match.attendances ?? [],
     };
@@ -270,16 +260,13 @@ export class MatchesService {
       where: { matchId: In(matchIds) },
     });
 
-    const grouped = attendances.reduce<Map<number, MatchAttendance[]>>(
-      (acc, attendance) => {
-        if (!acc.has(attendance.matchId)) {
-          acc.set(attendance.matchId, []);
-        }
-        acc.get(attendance.matchId)!.push(attendance);
-        return acc;
-      },
-      new Map(),
-    );
+    const grouped = attendances.reduce<Map<number, MatchAttendance[]>>((acc, attendance) => {
+      if (!acc.has(attendance.matchId)) {
+        acc.set(attendance.matchId, []);
+      }
+      acc.get(attendance.matchId)!.push(attendance);
+      return acc;
+    }, new Map());
 
     matches.forEach((match) => {
       match.attendances = grouped.get(match.id) ?? [];
@@ -300,9 +287,7 @@ export class MatchesService {
       where: { teamId: In(teamIds) },
       select: ['userId'],
     });
-    const uniqueUserIds = Array.from(
-      new Set(members.map((member) => member.userId)),
-    );
+    const uniqueUserIds = Array.from(new Set(members.map((member) => member.userId)));
     if (!uniqueUserIds.length) {
       return;
     }

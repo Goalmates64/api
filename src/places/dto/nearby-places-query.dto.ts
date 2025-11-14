@@ -1,12 +1,5 @@
 import { Transform } from 'class-transformer';
-import {
-  IsInt,
-  IsLatitude,
-  IsLongitude,
-  IsOptional,
-  Max,
-  Min,
-} from 'class-validator';
+import { IsInt, IsLatitude, IsLongitude, IsOptional, Max, Min } from 'class-validator';
 import { toOptionalNumber, toRequiredNumber } from './transformers';
 
 export class NearbyPlacesQueryDto {

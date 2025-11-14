@@ -15,8 +15,7 @@ import { NearbyPlacesQueryDto } from './dto/nearby-places-query.dto';
 import { SearchPlacesDto } from './dto/search-places.dto';
 import { Match } from '../matches/match.entity';
 
-const DISTANCE_SQL =
-  'ST_Distance_Sphere(place.location, ST_SRID(POINT(:lng,:lat), 4326))';
+const DISTANCE_SQL = 'ST_Distance_Sphere(place.location, ST_SRID(POINT(:lng,:lat), 4326))';
 
 export interface PlaceWithDistance {
   id: number;
@@ -69,9 +68,7 @@ export class PlacesService {
     );
     const insertedId = identifierId ?? rawId;
     if (!insertedId) {
-      throw new InternalServerErrorException(
-        'Impossible de récupérer le lieu créé.',
-      );
+      throw new InternalServerErrorException('Impossible de récupérer le lieu créé.');
     }
     return this.findOne(insertedId);
   }
@@ -94,9 +91,7 @@ export class PlacesService {
   async list(dto: ListPlacesQueryDto) {
     const page = dto.page && dto.page > 0 ? dto.page : 1;
     const limit = dto.limit && dto.limit > 0 ? Math.min(dto.limit, 50) : 20;
-    const qb = this.placeRepo
-      .createQueryBuilder('place')
-      .orderBy('place.createdAt', 'DESC');
+    const qb = this.placeRepo.createQueryBuilder('place').orderBy('place.createdAt', 'DESC');
 
     if (dto.query?.trim()) {
       const term = `%${dto.query.trim()}%`;
@@ -139,9 +134,7 @@ export class PlacesService {
       name: dto.name !== undefined ? dto.name.trim() : place.name,
       city: dto.city !== undefined ? dto.city.trim() : place.city,
       countryCode:
-        dto.countryCode !== undefined
-          ? dto.countryCode.trim().toUpperCase()
-          : place.countryCode,
+        dto.countryCode !== undefined ? dto.countryCode.trim().toUpperCase() : place.countryCode,
       lat: dto.lat ?? place.lat,
       lng: dto.lng ?? place.lng,
     };

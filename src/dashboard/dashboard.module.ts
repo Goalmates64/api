@@ -9,10 +9,7 @@ import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([TeamMember, Team, Match, Place]),
-    NotificationsModule,
-  ],
+  imports: [TypeOrmModule.forFeature([TeamMember, Team, Match, Place]), NotificationsModule],
   controllers: [DashboardController],
   providers: [DashboardService],
 })
