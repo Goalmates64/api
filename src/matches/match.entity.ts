@@ -1,14 +1,16 @@
-﻿import {
+import {
   Column,
   CreateDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Team } from '../teams/team.entity';
 import { MatchStatus } from './match-status.enum';
 import { Place } from '../places/place.entity';
+import { MatchAttendance } from './attendance/match-attendance.entity';
 
 @Entity()
 export class Match {
@@ -50,4 +52,9 @@ export class Match {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  @OneToMany(() => MatchAttendance, (attendance) => attendance.match, {
+    cascade: true,
+  })
+  attendances: MatchAttendance[];
 }

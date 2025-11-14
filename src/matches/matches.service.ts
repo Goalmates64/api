@@ -8,9 +8,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 
 import { Match } from './match.entity';
+import { MatchAttendance } from './attendance/match-attendance.entity';
 import { MatchStatus } from './match-status.enum';
 import { CreateMatchDto } from './dto/create-match.dto';
 import { ReportScoreDto } from './dto/report-score.dto';
+import { UpdateAttendanceDto } from './dto/update-attendance.dto';
 import { Team } from '../teams/team.entity';
 import { TeamMember } from '../teams/team-member.entity';
 import { Place } from '../places/place.entity';
@@ -21,12 +23,19 @@ export class MatchesService {
   constructor(
     @InjectRepository(Match)
     private readonly matchRepo: Repository<Match>,
+
     @InjectRepository(Team)
     private readonly teamRepo: Repository<Team>,
+
     @InjectRepository(TeamMember)
     private readonly memberRepo: Repository<TeamMember>,
+
     @InjectRepository(Place)
     private readonly placeRepo: Repository<Place>,
+
+    @InjectRepository(MatchAttendance)
+    private readonly attendanceRepo: Repository<MatchAttendance>,
+
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -167,6 +176,42 @@ export class MatchesService {
     return this.loadMatch(match.id);
   }
 
+  async respondAttendance(
+    userId: number,
+
+    matchId: number,
+
+    dto: UpdateAttendanceDto,
+  ) {
+    const match = await this.matchRepo.findOne({ where: { id: matchId } });
+
+    if (!match) {
+      throw new NotFoundException('Match introuvable');
+    }
+
+    await this.ensureUserInTeams(userId, [match.homeTeamId, match.awayTeamId]);
+
+    const trimmedReason = dto.reason?.trim() || null;
+
+    let attendance = await this.attendanceRepo.findOne({
+      where: { matchId, userId },
+    });
+
+    if (!attendance) {
+      attendance = this.attendanceRepo.create({ matchId, userId });
+    }
+
+    attendance.status = dto.status;
+
+    attendance.reason = trimmedReason;
+
+    attendance.respondedAt = new Date();
+
+    await this.attendanceRepo.save(attendance);
+
+    return this.loadMatch(matchId);
+  }
+
   private async ensureUserInTeams(userId: number, teamIds: number[]) {
     const memberships = await this.memberRepo.count({
       where: { userId, teamId: In(teamIds) },
@@ -182,21 +227,32 @@ export class MatchesService {
   }
 
   private async loadMatch(id: number) {
-    const match = await this.matchRepo.findOne({ where: { id } });
+    const match = await this.matchRepo.findOne({
+      where: { id },
+
+      relations: { attendances: true },
+    });
+
     if (!match) {
       throw new NotFoundException('Match introuvable');
     }
+
     return this.attachTeams(match);
   }
 
   private attachTeams(match: Match) {
     return {
       ...match,
+
       homeTeam: match.homeTeam ?? { id: match.homeTeamId },
+
       awayTeam: match.awayTeam ?? { id: match.awayTeamId },
+
       place:
         match.place ??
         (match.placeId ? ({ id: match.placeId } as Place) : null),
+
+      attendances: match.attendances ?? [],
     };
   }
 

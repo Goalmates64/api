@@ -1,4 +1,4 @@
-﻿import { Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './users/user.entity';
@@ -8,6 +8,7 @@ import { Team } from './teams/team.entity';
 import { TeamMember } from './teams/team-member.entity';
 import { TeamsModule } from './teams/teams.module';
 import { Match } from './matches/match.entity';
+import { MatchAttendance } from './matches/attendance/match-attendance.entity';
 import { Place } from './places/place.entity';
 import { MatchesModule } from './matches/matches.module';
 import { PlacesModule } from './places/places.module';
@@ -17,6 +18,7 @@ import { BlobStorageModule } from './storage/blob-storage.module';
 import { ChatRoom } from './chat/chat-room.entity';
 import { ChatMessage } from './chat/chat-message.entity';
 import { ChatModule } from './chat/chat.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -41,6 +43,7 @@ import { ChatModule } from './chat/chat.module';
           Team,
           TeamMember,
           Match,
+          MatchAttendance,
           Notification,
           ChatRoom,
           ChatMessage,
@@ -58,6 +61,7 @@ import { ChatModule } from './chat/chat.module';
     BlobStorageModule,
     ChatModule,
     PlacesModule,
+    DashboardModule,
   ],
 })
 export class AppModule {}

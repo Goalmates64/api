@@ -1,7 +1,8 @@
-﻿import { Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { Match } from './match.entity';
+import { MatchAttendance } from './attendance/match-attendance.entity';
 import { Team } from '../teams/team.entity';
 import { TeamMember } from '../teams/team-member.entity';
 import { Place } from '../places/place.entity';
@@ -11,7 +12,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Match, Team, TeamMember, Place]),
+    TypeOrmModule.forFeature([Match, MatchAttendance, Team, TeamMember, Place]),
     NotificationsModule,
   ],
   providers: [MatchesService],
