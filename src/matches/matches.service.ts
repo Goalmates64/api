@@ -124,7 +124,9 @@ export class MatchesService {
       .orderBy('match.scheduledAt', 'ASC')
       .getMany();
 
-    return matches.map((match) => this.attachTeams(match));
+    const hydratedMatches = await this.hydrateAttendances(matches);
+
+    return hydratedMatches.map((match) => this.attachTeams(match));
   }
 
   async listHistory(userId: number) {
@@ -156,7 +158,9 @@ export class MatchesService {
       .limit(50)
       .getMany();
 
-    return matches.map((match) => this.attachTeams(match));
+    const hydratedMatches = await this.hydrateAttendances(matches);
+
+    return hydratedMatches.map((match) => this.attachTeams(match));
   }
 
   async reportScore(userId: number, matchId: number, dto: ReportScoreDto) {
@@ -254,6 +258,34 @@ export class MatchesService {
 
       attendances: match.attendances ?? [],
     };
+  }
+
+  private async hydrateAttendances(matches: Match[]) {
+    if (!matches.length) {
+      return matches;
+    }
+
+    const matchIds = matches.map((match) => match.id);
+    const attendances = await this.attendanceRepo.find({
+      where: { matchId: In(matchIds) },
+    });
+
+    const grouped = attendances.reduce<Map<number, MatchAttendance[]>>(
+      (acc, attendance) => {
+        if (!acc.has(attendance.matchId)) {
+          acc.set(attendance.matchId, []);
+        }
+        acc.get(attendance.matchId)!.push(attendance);
+        return acc;
+      },
+      new Map(),
+    );
+
+    matches.forEach((match) => {
+      match.attendances = grouped.get(match.id) ?? [];
+    });
+
+    return matches;
   }
 
   private async notifyPlayersAboutMatch(params: {

@@ -14,6 +14,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { MatchesService } from './matches.service';
 import { CreateMatchDto } from './dto/create-match.dto';
 import { ReportScoreDto } from './dto/report-score.dto';
+import { UpdateAttendanceDto } from './dto/update-attendance.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('matches')
@@ -50,5 +51,17 @@ export class MatchesController {
   ) {
     this.logger.log(`User ${userId} reporting score for match ${id}`);
     return this.matchesService.reportScore(userId, id, dto);
+  }
+
+  @Post(':id/attendance')
+  respondAttendance(
+    @CurrentUser() userId: number,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateAttendanceDto,
+  ) {
+    this.logger.log(
+      `User ${userId} updating attendance for match ${id} with status ${dto.status}`,
+    );
+    return this.matchesService.respondAttendance(userId, id, dto);
   }
 }
