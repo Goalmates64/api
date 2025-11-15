@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
@@ -20,6 +25,8 @@ interface TimedToken {
 export class AuthService {
   private static readonly VERIFICATION_TOKEN_TTL_MS = 1000 * 60 * 60 * 24; // 24h
   private static readonly PASSWORD_RESET_TOKEN_TTL_MS = 1000 * 60 * 30; // 30min
+  private static readonly PASSWORD_REGEX =
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 
   constructor(
     private readonly usersService: UsersService,
@@ -34,6 +41,7 @@ export class AuthService {
       throw new ConflictException('Email deja utilise');
     }
 
+    this.ensurePasswordIsStrong(dto.password);
     const user = await this.usersService.create(dto);
     await this.issueVerificationEmail(user);
 
@@ -107,7 +115,10 @@ export class AuthService {
         });
       }
 
-      const codeIsValid = this.twoFactorService.isCodeValid(sanitizedCode, user.twoFactorSecret ?? '');
+      const codeIsValid = this.twoFactorService.isCodeValid(
+        sanitizedCode,
+        user.twoFactorSecret ?? '',
+      );
       if (!codeIsValid) {
         throw new UnauthorizedException({
           message: 'Code de validation invalide.',
@@ -154,12 +165,33 @@ export class AuthService {
       throw new UnauthorizedException('Lien de reinitialisation invalide ou expire');
     }
 
-    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    this.ensurePasswordIsStrong(newPassword);
+    await this.ensurePasswordIsNotReused(user, newPassword);
+    await this.setUserPassword(user, newPassword);
     user.passwordResetTokenHash = null;
     user.passwordResetTokenExpiresAt = null;
     await this.usersService.save(user);
 
     return this.buildAuthResponse(user);
+  }
+
+  async changePassword(userId: number, currentPassword: string, newPassword: string) {
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('Utilisateur introuvable');
+    }
+
+    const matches = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!matches) {
+      throw new UnauthorizedException('Mot de passe actuel invalide');
+    }
+
+    this.ensurePasswordIsStrong(newPassword);
+    await this.ensurePasswordIsNotReused(user, newPassword);
+    await this.setUserPassword(user, newPassword);
+    await this.usersService.save(user);
+
+    return this.usersService.toProfile(user);
   }
 
   async initiateTwoFactorSetup(userId: number) {
@@ -193,7 +225,7 @@ export class AuthService {
     }
 
     if (!user.twoFactorSecret) {
-      throw new BadRequestException('Genere un code de configuration d\'abord.');
+      throw new BadRequestException("Genere un code de configuration d'abord.");
     }
 
     const sanitizedCode = code?.replace(/\s+/g, '').trim();
@@ -257,6 +289,34 @@ export class AuthService {
       token: token.plain,
       expiresAt: token.expiresAt,
     });
+  }
+
+  private ensurePasswordIsStrong(password: string): void {
+    if (!AuthService.PASSWORD_REGEX.test(password)) {
+      throw new BadRequestException(
+        'Le mot de passe doit contenir au moins 8 caracteres, une majuscule, une minuscule, un chiffre et un caractere special.',
+      );
+    }
+  }
+
+  private async ensurePasswordIsNotReused(user: User, password: string): Promise<void> {
+    const matchesCurrent = await bcrypt.compare(password, user.passwordHash);
+    if (matchesCurrent) {
+      throw new BadRequestException("Le nouveau mot de passe doit etre different de l'ancien.");
+    }
+
+    if (user.lastPasswordHash) {
+      const matchesPrevious = await bcrypt.compare(password, user.lastPasswordHash);
+      if (matchesPrevious) {
+        throw new BadRequestException('Le nouveau mot de passe doit etre different du precedent.');
+      }
+    }
+  }
+
+  private async setUserPassword(user: User, newPassword: string): Promise<void> {
+    user.lastPasswordHash = user.passwordHash;
+    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    user.passwordChangedAt = new Date();
   }
 
   private createToken(ttlMs: number): TimedToken {

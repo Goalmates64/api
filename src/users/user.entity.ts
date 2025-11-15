@@ -50,6 +50,12 @@ export class User {
   isEmailVerified: boolean;
 
   @Column({ type: 'datetime', nullable: true })
+  passwordChangedAt: Date | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  lastPasswordHash: string | null;
+
+  @Column({ type: 'datetime', nullable: true })
   emailVerifiedAt: Date | null;
 
   @Column({ type: 'varchar', length: 255, nullable: true })

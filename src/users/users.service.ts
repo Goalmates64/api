@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -19,11 +20,16 @@ type UploadedFile = {
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
+  private readonly passwordMaxAgeMs: number;
+
   constructor(
     @InjectRepository(User)
     private readonly repo: Repository<User>,
     private readonly blobStorage: BlobStorageService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.passwordMaxAgeMs = this.resolvePasswordMaxAgeMs();
+  }
 
   async create(dto: CreateUserDto): Promise<User> {
     const passwordHash = await bcrypt.hash(dto.password, 10);
@@ -47,6 +53,8 @@ export class UsersService {
       twoFactorEnabledAt: null,
       passwordResetTokenHash: null,
       passwordResetTokenExpiresAt: null,
+      passwordChangedAt: new Date(),
+      lastPasswordHash: null,
     });
 
     const saved = await this.repo.save(user);
@@ -144,6 +152,7 @@ export class UsersService {
       isChatEnabled: user.isChatEnabled ?? true,
       isEmailVerified: user.isEmailVerified ?? false,
       isTwoFactorEnabled: user.isTwoFactorEnabled ?? false,
+      mustChangePassword: this.passwordRequiresRefresh(user),
     };
   }
 
@@ -216,5 +225,31 @@ export class UsersService {
 
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : null;
+  }
+
+  passwordRequiresRefresh(user: User): boolean {
+    if (!this.passwordMaxAgeMs) {
+      return false;
+    }
+
+    if (!user.passwordChangedAt) {
+      return false;
+    }
+
+    return Date.now() - user.passwordChangedAt.getTime() >= this.passwordMaxAgeMs;
+  }
+
+  private resolvePasswordMaxAgeMs(): number {
+    const raw = this.configService.get<string>('PASSWORD_MAX_AGE_DAYS');
+    if (!raw) {
+      return 30 * 24 * 60 * 60 * 1000;
+    }
+
+    const days = Number(raw);
+    if (!Number.isFinite(days) || days <= 0) {
+      return 30 * 24 * 60 * 60 * 1000;
+    }
+
+    return days * 24 * 60 * 60 * 1000;
   }
 }

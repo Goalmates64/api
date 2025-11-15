@@ -1,4 +1,4 @@
-﻿import {
+import {
   Body,
   Controller,
   Delete,
@@ -55,13 +55,13 @@ export class PlacesController {
 
   @Post()
   create(@Body() dto: CreatePlaceDto) {
-    this.logger.log(`Cr�ation d'un lieu ${dto.name}`);
+    this.logger.log(`Creation d'un lieu ${dto.name}`);
     return this.placesService.create(dto);
   }
 
   @Patch(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdatePlaceDto) {
-    this.logger.log(`Mise � jour du lieu ${id}`);
+    this.logger.log(`Mise a jour du lieu ${id}`);
     return this.placesService.update(id, dto);
   }
 

@@ -3,7 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import nodemailer from 'nodemailer';
 import { Resend } from 'resend';
 
-import { buildEmailVerificationTemplate, buildNotificationTemplate, buildPasswordResetTemplate } from './templates';
+import {
+  buildEmailVerificationTemplate,
+  buildNotificationTemplate,
+  buildPasswordResetTemplate,
+} from './templates';
 
 type MailMessage = {
   to: string;
@@ -70,7 +74,6 @@ export class MailService {
       text: template.text,
     });
   }
-
 
   async sendPasswordResetEmail(options: {
     to: string;

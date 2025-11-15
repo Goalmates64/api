@@ -18,6 +18,7 @@ import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { TwoFactorCodeDto } from './dto/two-factor-code.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -64,6 +65,14 @@ export class AuthController {
   async resetPassword(@Body() dto: ResetPasswordDto) {
     this.logger.log('Password reset executed through token');
     return this.authService.resetPassword(dto.token, dto.password);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  changePassword(@Req() req: requestWithUser.RequestWithUser, @Body() dto: ChangePasswordDto) {
+    const userId = this.extractUserId(req);
+    this.logger.log(`Password change requested for userId=${userId}`);
+    return this.authService.changePassword(userId, dto.currentPassword, dto.newPassword);
   }
 
   @UseGuards(JwtAuthGuard)

@@ -1,8 +1,8 @@
 import { IsNotEmpty, Matches, MinLength } from 'class-validator';
 
-export class ResetPasswordDto {
+export class ChangePasswordDto {
   @IsNotEmpty()
-  token: string;
+  currentPassword: string;
 
   @IsNotEmpty()
   @MinLength(8)
@@ -10,5 +10,5 @@ export class ResetPasswordDto {
     message:
       'Le nouveau mot de passe doit contenir au moins 8 caracteres, une majuscule, une minuscule, un chiffre et un caractere special.',
   })
-  password: string;
+  newPassword: string;
 }

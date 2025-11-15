@@ -11,4 +11,5 @@ export interface UserProfileDto {
   isChatEnabled: boolean;
   isEmailVerified: boolean;
   isTwoFactorEnabled: boolean;
+  mustChangePassword: boolean;
 }
