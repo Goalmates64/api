@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+﻿import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import nodemailer from 'nodemailer';
 import { Resend } from 'resend';
@@ -37,7 +37,17 @@ export class MailService {
       this.configService.get<string>('MAIL_FROM') ?? 'GoalMates <noreply@goalmates.local>';
     this.frontendBaseUrl =
       this.configService.get<string>('FRONTEND_URL') ?? 'http://localhost:4200';
-    this.transport = this.initializeTransport();
+    const provider = (this.configService.get<string>('MAIL_PROVIDER') ?? 'smtp').toLowerCase();
+    const hasResendKey = Boolean(this.configService.get<string>('RESEND_API_KEY'));
+    this.logger.log(
+      `Bootstrapping mail transport (provider=${provider}, from=${this.fromEmail}, frontendBase=${this.frontendBaseUrl}, hasResendKey=${hasResendKey})`,
+    );
+    this.transport = this.initializeTransport(provider);
+    if (!this.transport) {
+      this.logger.warn(
+        'Mail transport inactive. Emails will be ignored until configuration is fixed.',
+      );
+    }
   }
 
   async sendEmailVerification(options: {
@@ -87,11 +97,9 @@ export class MailService {
     });
   }
 
-  private initializeTransport(): MailTransport | null {
-    const provider = (this.configService.get<string>('MAIL_PROVIDER') ?? 'smtp').toLowerCase();
-
+  private initializeTransport(provider: string): MailTransport | null {
     if (['none', 'disabled', 'off'].includes(provider)) {
-      this.logger.warn('MAIL_PROVIDER est d?sactiv?. Aucun email ne sera envoy?.');
+      this.logger.warn('MAIL_PROVIDER est desactive. Aucun email ne sera envoye.');
       return null;
     }
 
@@ -101,7 +109,8 @@ export class MailService {
         this.logger.error("RESEND_API_KEY est manquant. Impossible d'envoyer les emails.");
         return null;
       }
-      return new ResendTransport(apiKey);
+      this.logger.log('Resend transport configure.');
+      return new ResendTransport(apiKey, this.logger);
     }
 
     const smtpOptions: SmtpOptions = {
@@ -112,21 +121,25 @@ export class MailService {
       pass: this.configService.get<string>('SMTP_PASSWORD'),
     };
 
-    return new SmtpTransport(smtpOptions);
+    this.logger.log(
+      `SMTP transport configured (host=${smtpOptions.host}, port=${smtpOptions.port}, secure=${smtpOptions.secure}, auth=${smtpOptions.user ? 'enabled' : 'disabled'})`,
+    );
+    return new SmtpTransport(smtpOptions, this.logger);
   }
 
   private async dispatch(message: MailMessage): Promise<void> {
     if (!this.transport) {
-      this.logger.warn(`Email ignor? (transport inactif) -> ${message.to}`);
+      this.logger.warn(`Email ignore (transport inactif) -> ${message.to}`);
       return;
     }
 
     try {
       await this.transport.send({ ...message, from: this.fromEmail });
-      this.logger.debug(`Email envoy? ? ${message.to}`);
+      this.logger.debug(`Email envoye a ${message.to}`);
     } catch (error: unknown) {
-      const reason = error instanceof Error ? error.message : 'Erreur inconnue';
-      this.logger.error(`?chec de l'envoi d'email ? ${message.to}: ${reason}`);
+      const reason =
+        error instanceof Error ? `${error.name}: ${error.message}` : JSON.stringify(error);
+      this.logger.error(`Echec de l'envoi d'email a ${message.to}: ${reason}`);
     }
   }
 
@@ -149,7 +162,7 @@ export class MailService {
     } catch (error: unknown) {
       const reason = error instanceof Error ? error.message : 'URL invalide';
       this.logger.warn(
-        `URL front mal formée (${path}). Utilisation d'une concaténation simple. Détail: ${reason}`,
+        `URL front mal formee (${path}). Utilisation d'une concatenation simple. Detail: ${reason}`,
       );
       const queryString = query ? `?${new URLSearchParams(query).toString()}` : '';
       return `${base}${sanitizedPath}${queryString}`;
@@ -173,18 +186,28 @@ export class MailService {
 class SmtpTransport implements MailTransport {
   private readonly transporter: nodemailer.Transporter;
 
-  constructor(options: SmtpOptions) {
-    this.transporter = nodemailer.createTransport({
-      host: options.host,
-      port: options.port,
-      secure: options.secure,
-      auth: options.user
-        ? {
-            user: options.user,
-            pass: options.pass ?? undefined,
-          }
-        : undefined,
-    });
+  constructor(
+    options: SmtpOptions,
+    private readonly logger: Logger,
+  ) {
+    try {
+      this.transporter = nodemailer.createTransport({
+        host: options.host,
+        port: options.port,
+        secure: options.secure,
+        auth: options.user
+          ? {
+              user: options.user,
+              pass: options.pass ?? undefined,
+            }
+          : undefined,
+      });
+    } catch (error: unknown) {
+      const reason =
+        error instanceof Error ? `${error.name}: ${error.message}` : JSON.stringify(error);
+      this.logger.error(`Impossible de configurer le transport SMTP: ${reason}`);
+      throw error;
+    }
   }
 
   async send(message: MailMessage & { from: string }): Promise<void> {
@@ -202,7 +225,10 @@ class SmtpTransport implements MailTransport {
 class ResendTransport implements MailTransport {
   private readonly client: Resend;
 
-  constructor(apiKey: string) {
+  constructor(
+    apiKey: string,
+    private readonly logger: Logger,
+  ) {
     this.client = new Resend(apiKey);
   }
 
@@ -214,5 +240,6 @@ class ResendTransport implements MailTransport {
       html: message.html,
       text: message.text,
     });
+    this.logger.debug(`Resend a accepte l'email vers ${message.to}`);
   }
 }
