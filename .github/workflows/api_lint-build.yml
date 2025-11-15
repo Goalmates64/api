@@ -29,12 +29,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Lint + JUnit report
-      - name: Lint
+      - name: Lint (ESLint JUnit)
         run: |
-          # Adjust this command to match your lint script
-          # Example for eslint: pnpm lint -- --format junit --output-file lint-report.xml
-          pnpm lint -- --format junit --output-file lint-report.xml || true
+          pnpm lint:ci || true
 
       - name: Publish lint report
         uses: dorny/test-reporter@v1
