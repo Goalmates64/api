@@ -1,9 +1,9 @@
-﻿import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import nodemailer from 'nodemailer';
 import { Resend } from 'resend';
 
-import { buildEmailVerificationTemplate, buildNotificationTemplate } from './templates';
+import { buildEmailVerificationTemplate, buildNotificationTemplate, buildPasswordResetTemplate } from './templates';
 
 type MailMessage = {
   to: string;
@@ -60,6 +60,28 @@ export class MailService {
     const template = buildEmailVerificationTemplate({
       username: options.username,
       verificationUrl: verifyUrl,
+      expiresAt: options.expiresAt,
+    });
+
+    await this.dispatch({
+      to: options.to,
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
+    });
+  }
+
+
+  async sendPasswordResetEmail(options: {
+    to: string;
+    username: string;
+    token: string;
+    expiresAt: Date;
+  }): Promise<void> {
+    const resetUrl = this.buildFrontendUrl('auth/reset-password', { token: options.token });
+    const template = buildPasswordResetTemplate({
+      username: options.username,
+      resetUrl,
       expiresAt: options.expiresAt,
     });
 

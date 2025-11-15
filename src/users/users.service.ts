@@ -42,6 +42,11 @@ export class UsersService {
       emailVerifiedAt: null,
       emailVerificationTokenHash: null,
       emailVerificationTokenExpiresAt: null,
+      twoFactorSecret: null,
+      isTwoFactorEnabled: false,
+      twoFactorEnabledAt: null,
+      passwordResetTokenHash: null,
+      passwordResetTokenExpiresAt: null,
     });
 
     const saved = await this.repo.save(user);
@@ -63,6 +68,10 @@ export class UsersService {
 
   findByVerificationTokenHash(hash: string): Promise<User | null> {
     return this.repo.findOne({ where: { emailVerificationTokenHash: hash } });
+  }
+
+  findByPasswordResetTokenHash(hash: string): Promise<User | null> {
+    return this.repo.findOne({ where: { passwordResetTokenHash: hash } });
   }
 
   async searchByUsername(query: string): Promise<Array<Pick<User, 'id' | 'username' | 'email'>>> {
@@ -134,6 +143,7 @@ export class UsersService {
       avatarUrl: user.avatarUrl ?? null,
       isChatEnabled: user.isChatEnabled ?? true,
       isEmailVerified: user.isEmailVerified ?? false,
+      isTwoFactorEnabled: user.isTwoFactorEnabled ?? false,
     };
   }
 

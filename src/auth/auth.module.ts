@@ -8,6 +8,7 @@ import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
 import { JwtStrategy } from './jwt.strategy';
 import { MailModule } from '../mail/mail.module';
+import { TwoFactorService } from './two-factor.service';
 
 const MIN_JWT_EXPIRATION_SECONDS = 60;
 type JwtExpiryString = `${number}${'s' | 'm' | 'h' | 'd'}`;
@@ -28,7 +29,7 @@ type JwtExpiryString = `${number}${'s' | 'm' | 'h' | 'd'}`;
       }),
     }),
   ],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, TwoFactorService],
   controllers: [AuthController],
 })
 export class AuthModule {}

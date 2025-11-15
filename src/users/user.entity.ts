@@ -58,6 +58,21 @@ export class User {
   @Column({ type: 'datetime', nullable: true })
   emailVerificationTokenExpiresAt: Date | null;
 
+  @Column({ type: 'varchar', length: 128, nullable: true })
+  twoFactorSecret: string | null;
+
+  @Column({ default: false })
+  isTwoFactorEnabled: boolean;
+
+  @Column({ type: 'datetime', nullable: true })
+  twoFactorEnabledAt: Date | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  passwordResetTokenHash: string | null;
+
+  @Column({ type: 'datetime', nullable: true })
+  passwordResetTokenExpiresAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

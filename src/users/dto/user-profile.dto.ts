@@ -10,4 +10,5 @@ export interface UserProfileDto {
   avatarUrl: string | null;
   isChatEnabled: boolean;
   isEmailVerified: boolean;
+  isTwoFactorEnabled: boolean;
 }
