@@ -1,4 +1,4 @@
-name: NestJS CI
+name: API CI
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  api-ci:
     runs-on: ubuntu-latest
 
     steps:
@@ -29,5 +29,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build NestJS
+      # Lint + JUnit report
+      - name: Lint
+        run: |
+          # Adjust this command to match your lint script
+          # Example for eslint: pnpm lint -- --format junit --output-file lint-report.xml
+          pnpm lint -- --format junit --output-file lint-report.xml || true
+
+      - name: Publish lint report
+        uses: dorny/test-reporter@v1
+        with:
+          name: API Lint
+          path: lint-report.xml
+          reporter: jest-junit
+          fail-on-error: true
+
+      - name: Build
         run: pnpm build
