@@ -9,4 +9,5 @@ export interface UserProfileDto {
   country: string | null;
   avatarUrl: string | null;
   isChatEnabled: boolean;
+  isEmailVerified: boolean;
 }

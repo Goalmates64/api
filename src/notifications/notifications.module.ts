@@ -8,11 +8,13 @@ import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
 import { User } from '../users/user.entity';
 import { NotificationsGateway } from './notifications.gateway';
+import { MailModule } from '../mail/mail.module'; // <-- import du module
 
 @Module({
   imports: [
     ConfigModule,
     TypeOrmModule.forFeature([Notification, User]),
+    MailModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({

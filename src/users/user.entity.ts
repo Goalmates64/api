@@ -46,6 +46,18 @@ export class User {
   @Column({ default: true })
   isChatEnabled: boolean;
 
+  @Column({ default: false })
+  isEmailVerified: boolean;
+
+  @Column({ type: 'datetime', nullable: true })
+  emailVerifiedAt: Date | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  emailVerificationTokenHash: string | null;
+
+  @Column({ type: 'datetime', nullable: true })
+  emailVerificationTokenExpiresAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

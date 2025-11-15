@@ -7,6 +7,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
 import { JwtStrategy } from './jwt.strategy';
+import { MailModule } from '../mail/mail.module';
 
 const MIN_JWT_EXPIRATION_SECONDS = 60;
 type JwtExpiryString = `${number}${'s' | 'm' | 'h' | 'd'}`;
@@ -16,6 +17,7 @@ type JwtExpiryString = `${number}${'s' | 'm' | 'h' | 'd'}`;
     ConfigModule,
     UsersModule,
     PassportModule,
+    MailModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({

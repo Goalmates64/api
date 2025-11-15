@@ -19,6 +19,7 @@ import { ChatRoom } from './chat/chat-room.entity';
 import { ChatMessage } from './chat/chat-message.entity';
 import { ChatModule } from './chat/chat.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
         legacySpatialSupport: false,
       }),
     }),
+    MailModule,
     UsersModule,
     AuthModule,
     TeamsModule,

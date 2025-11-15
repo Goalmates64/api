@@ -38,6 +38,10 @@ export class UsersService {
       city: this.normalizeNullableString(dto.city),
       country: this.normalizeNullableString(dto.country),
       isChatEnabled: true,
+      isEmailVerified: false,
+      emailVerifiedAt: null,
+      emailVerificationTokenHash: null,
+      emailVerificationTokenExpiresAt: null,
     });
 
     const saved = await this.repo.save(user);
@@ -51,6 +55,14 @@ export class UsersService {
 
   findById(id: number): Promise<User | null> {
     return this.repo.findOne({ where: { id } });
+  }
+
+  async save(user: User): Promise<User> {
+    return this.repo.save(user);
+  }
+
+  findByVerificationTokenHash(hash: string): Promise<User | null> {
+    return this.repo.findOne({ where: { emailVerificationTokenHash: hash } });
   }
 
   async searchByUsername(query: string): Promise<Array<Pick<User, 'id' | 'username' | 'email'>>> {
@@ -121,6 +133,7 @@ export class UsersService {
       country: user.country ?? null,
       avatarUrl: user.avatarUrl ?? null,
       isChatEnabled: user.isChatEnabled ?? true,
+      isEmailVerified: user.isEmailVerified ?? false,
     };
   }
 
