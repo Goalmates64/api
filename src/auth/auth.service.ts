@@ -26,7 +26,7 @@ export class AuthService {
   private static readonly VERIFICATION_TOKEN_TTL_MS = 1000 * 60 * 60 * 24; // 24h
   private static readonly PASSWORD_RESET_TOKEN_TTL_MS = 1000 * 60 * 30; // 30min
   private static readonly PASSWORD_REGEX =
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 
   constructor(
     private readonly usersService: UsersService,
