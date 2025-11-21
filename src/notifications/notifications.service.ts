@@ -5,7 +5,7 @@ import { In, Repository } from 'typeorm';
 import { Notification } from './notification.entity';
 import { User } from '../users/user.entity';
 import { NotificationsGateway } from './notifications.gateway';
-import { MailService } from '../mail/mail.service';
+import { NotificationEmailQueue } from './notification-email.queue';
 
 export interface CreateNotificationPayload {
   senderId?: number | null;
@@ -33,7 +33,7 @@ export class NotificationsService {
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     private readonly notificationsGateway: NotificationsGateway,
-    private readonly mailService: MailService,
+    private readonly notificationEmailQueue: NotificationEmailQueue,
   ) {}
 
   async listForUser(userId: number): Promise<NotificationSummary[]> {
@@ -94,7 +94,7 @@ export class NotificationsService {
     });
 
     const saved = await this.notificationRepo.save(notification);
-    void this.sendNotificationEmails([saved]);
+    this.notificationEmailQueue.enqueue([saved.id]);
     const sender = await this.loadSingleSender(saved.senderId);
     const summary = this.toSummary(saved, sender);
     this.notificationsGateway.emitNewNotification(summary.receiverId, summary);
@@ -118,7 +118,7 @@ export class NotificationsService {
     );
 
     const saved = await this.notificationRepo.save(notifications);
-    void this.sendNotificationEmails(saved);
+    this.notificationEmailQueue.enqueue(saved.map((entry) => entry.id));
 
     const senderMap = await this.loadSenders(saved.map((entry) => entry.senderId));
 
@@ -164,35 +164,6 @@ export class NotificationsService {
     return new Map(senders.map((sender) => [sender.id, sender]));
   }
 
-  private async sendNotificationEmails(entries: Notification[]): Promise<void> {
-    if (!entries.length) {
-      return;
-    }
-
-    const receiverIds = Array.from(new Set(entries.map((entry) => entry.receiverId)));
-    const receivers = await this.userRepo.find({
-      where: { id: In(receiverIds) },
-      select: { id: true, email: true, username: true, firstName: true },
-    });
-
-    const receiverMap = new Map(receivers.map((receiver) => [receiver.id, receiver]));
-
-    await Promise.allSettled(
-      entries.map(async (entry) => {
-        const receiver = receiverMap.get(entry.receiverId);
-        if (!receiver) {
-          return;
-        }
-
-        await this.mailService.sendNotificationEmail({
-          to: receiver.email,
-          username: receiver.firstName ?? receiver.username,
-          title: entry.title,
-          body: entry.body,
-        });
-      }),
-    );
-  }
   private toSummary(
     notification: Notification,
     sender: { id: number; username: string } | null,
