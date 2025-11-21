@@ -9,6 +9,8 @@ import { NotificationsController } from './notifications.controller';
 import { User } from '../users/user.entity';
 import { NotificationsGateway } from './notifications.gateway';
 import { MailModule } from '../mail/mail.module'; // <-- import du module
+import { NotificationEmailQueue } from './notification-email.queue';
+import { NotificationEmailWorker } from './notification-email.worker';
 
 @Module({
   imports: [
@@ -22,7 +24,12 @@ import { MailModule } from '../mail/mail.module'; // <-- import du module
       }),
     }),
   ],
-  providers: [NotificationsService, NotificationsGateway],
+  providers: [
+    NotificationsService,
+    NotificationsGateway,
+    NotificationEmailQueue,
+    NotificationEmailWorker,
+  ],
   controllers: [NotificationsController],
   exports: [NotificationsService],
 })
